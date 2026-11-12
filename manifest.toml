@@ -1,0 +1,16 @@
+# The specification is `open-package spec`
+
+[open-package]
+version = "1.0.0"
+
+[package]
+name = "enact"
+version = "0.1.0"
+description = "Runs YAML scenarios on iOS simulators with no LLM in the loop, and drives the devices directly"
+requires = ["swift", "bash", "git", "xcodebuild"]
+
+[command]
+set-up = "tool/set-up.sh"
+build = "swift build -c release --package-path package"
+test = "swift test --package-path package"
+embed-library = "tool/embed-library.sh"

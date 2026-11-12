@@ -1,0 +1,157 @@
+(interface 1)
+
+(enum Enact.AppState
+  (case background)
+  (case foreground)
+  (case notRunning))
+
+(enum Enact.Appearance
+  (case dark)
+  (case light))
+
+(enum Enact.BatteryState
+  (case charged)
+  (case charging)
+  (case discharging))
+
+(enum Enact.BiometricOutcome
+  (case match)
+  (case noMatch))
+
+(enum Enact.Button
+  (case applePay)
+  (case home)
+  (case lock)
+  (case side)
+  (case siri))
+
+(enum Enact.CellularMode
+  (case active)
+  (case failed)
+  (case notSupported)
+  (case searching))
+
+(enum Enact.ContentSize
+  (case accessibilityExtraExtraExtraLarge)
+  (case accessibilityExtraExtraLarge)
+  (case accessibilityExtraLarge)
+  (case accessibilityLarge)
+  (case accessibilityMedium)
+  (case extraExtraExtraLarge)
+  (case extraExtraLarge)
+  (case extraLarge)
+  (case extraSmall)
+  (case large)
+  (case medium)
+  (case small))
+
+(enum Enact.Contrast
+  (case increased)
+  (case standard))
+
+(struct Enact.Coordinate
+  (field lat Double)
+  (field lon Double))
+
+(enum Enact.DataNetwork
+  (case fiveG)
+  (case fiveGPlus)
+  (case fiveGUltraCapacity)
+  (case fiveGUltraWideband)
+  (case fourG)
+  (case hide)
+  (case lte)
+  (case lteAdvanced)
+  (case ltePlus)
+  (case threeG)
+  (case wifi))
+
+(enum Enact.Direction
+  (case down)
+  (case left)
+  (case right)
+  (case up))
+
+(struct Enact.Frame
+  (field height Double)
+  (field width Double)
+  (field x Double)
+  (field y Double))
+
+(enum Enact.Modifier
+  (case command)
+  (case control)
+  (case option)
+  (case shift))
+
+(struct Enact.Point
+  (field x Double)
+  (field y Double))
+
+(enum Enact.Orientation
+  (case landscapeLeft)
+  (case landscapeRight)
+  (case portrait)
+  (case portraitUpsideDown))
+
+(enum Enact.PrivacyDecision
+  (case grant)
+  (case reset)
+  (case revoke))
+
+(enum Enact.PrivacyService
+  (case all)
+  (case calendar)
+  (case camera)
+  (case contacts)
+  (case contactsLimited)
+  (case location)
+  (case locationAlways)
+  (case mediaLibrary)
+  (case microphone)
+  (case motion)
+  (case photos)
+  (case photosAdd)
+  (case reminders)
+  (case siri))
+
+(enum Enact.Role
+  (case alert)
+  (case bar)
+  (case button)
+  (case container)
+  (case field)
+  (case heading)
+  (case image)
+  (case key)
+  (case link)
+  (case map)
+  (case picker)
+  (case progress)
+  (case secureField)
+  (case slider)
+  (case text)
+  (case toggle)
+  (case unknown)
+  (case web))
+
+(struct Enact.Screen
+  (field elements (array Enact.Snapshot))
+  (field height Double)
+  (field width Double))
+
+(struct Enact.Snapshot
+  (field actions (array String))
+  (field enabled Bool)
+  (field frame Enact.Frame)
+  (field id (optional String))
+  (field index_path (array Int))
+  (field label (optional String))
+  (field role Enact.Role)
+  (field track (optional Enact.Frame))
+  (field value (optional String)))
+
+(enum Enact.WifiMode
+  (case active)
+  (case failed)
+  (case searching))

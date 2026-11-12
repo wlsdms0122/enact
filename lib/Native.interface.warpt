@@ -1,0 +1,283 @@
+(interface 1)
+
+(import Enact.AppState)
+(import Enact.Appearance)
+(import Enact.BatteryState)
+(import Enact.BiometricOutcome)
+(import Enact.Button)
+(import Enact.CellularMode)
+(import Enact.ContentSize)
+(import Enact.Contrast)
+(import Enact.Coordinate)
+(import Enact.DataNetwork)
+(import Enact.Direction)
+(import Enact.Frame)
+(import Enact.Modifier)
+(import Enact.Orientation)
+(import Enact.Point)
+(import Enact.PrivacyDecision)
+(import Enact.PrivacyService)
+(import Enact.Screen)
+(import Enact.Snapshot)
+(import Enact.WifiMode)
+
+(procedure Enact.Native.app_state
+  (parameter bundle_id (type String))
+  (returns Enact.AppState)
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.add_certificate
+  (parameter path (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.add_media
+  (parameter paths (type (array String)))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.add_root_certificate
+  (parameter path (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.clear_location
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.clear_status_bar
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.connect_hardware_keyboard
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.disable_app_accessibility
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.disconnect_hardware_keyboard
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.drag
+  (parameter from (type Enact.Point))
+  (parameter to (type Enact.Point))
+  (parameter duration (type Double))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.element_at
+  (parameter at (type Enact.Point))
+  (returns (optional Enact.Snapshot))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.enable_app_accessibility
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.fold
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.in_area
+  (const)
+  (isolated)
+  (parameter elements (type (array Enact.Snapshot)))
+  (parameter area (type Enact.Frame))
+  (parameter screen (type Enact.Screen))
+  (returns (array Enact.Snapshot))
+  (failing argument_refused))
+
+(procedure Enact.Native.install_app
+  (parameter path (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.is_app_accessibility_enabled
+  (returns Bool)
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.launch_app
+  (parameter bundle_id (type String))
+  (parameter args (type (array String)))
+  (parameter locale (type (optional String)))
+  (parameter language (type (optional String)))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.long_press
+  (parameter on (type Enact.Snapshot))
+  (parameter at (type (optional Enact.Point)))
+  (parameter duration (type Double))
+  (failing argument_refused device_refused reference_unfit))
+
+(procedure Enact.Native.look
+  (returns Enact.Screen)
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.move_slider
+  (parameter on (type Enact.Snapshot))
+  (parameter value (type Double))
+  (failing argument_refused device_refused reference_unfit))
+
+(procedure Enact.Native.nearest
+  (const)
+  (isolated)
+  (parameter elements (type (array Enact.Snapshot)))
+  (parameter to (type Enact.Point))
+  (parameter screen (type Enact.Screen))
+  (returns (array Enact.Snapshot))
+  (failing argument_refused))
+
+(procedure Enact.Native.open_url
+  (parameter url (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.press_button
+  (parameter button (type Enact.Button))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.press_key
+  (parameter key (type String))
+  (parameter modifiers (type (array Enact.Modifier)))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.push_notification
+  (parameter bundle_id (type String))
+  (parameter payload (type (dictionary String Any)))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.read_pasteboard
+  (returns String)
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.record
+  (parameter name (type (optional String)))
+  (parameter body (type (procedure (parameters) (failing (anything)) (returns (some Result)))))
+  (returns (some Result))
+  (failing (anything)))
+
+(procedure Enact.Native.record_log
+  (parameter name (type (optional String)))
+  (parameter predicate (type (optional String)))
+  (parameter body (type (procedure (parameters) (failing (anything)) (returns (some Result)))))
+  (returns (some Result))
+  (failing (anything)))
+
+(procedure Enact.Native.repeat
+  (parameter timeout (type Double))
+  (parameter debounce (type (optional Double)))
+  (parameter body (type (procedure (parameters) (failing (anything)) (returns (some Result)))))
+  (parameter until (type (procedure (parameters (some Result)) (failing (anything)) (returns Bool))))
+  (returns (some Result))
+  (failing (anything)))
+
+(procedure Enact.Native.reset_keychain
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.reset_privacy
+  (parameter service (type (array Enact.PrivacyService)))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.respond_biometric
+  (parameter outcome (type Enact.BiometricOutcome))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.screenshot
+  (parameter name (type (optional String)))
+  (returns String)
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_appearance
+  (parameter value (type Enact.Appearance))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_content_size
+  (parameter value (type Enact.ContentSize))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_contrast
+  (parameter value (type Enact.Contrast))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_location
+  (parameter lat (type Double))
+  (parameter lon (type Double))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_location_route
+  (parameter route (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_location_waypoints
+  (parameter waypoints (type (array Enact.Coordinate)))
+  (parameter speed (type (optional Double)))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_orientation
+  (parameter value (type Enact.Orientation))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_pasteboard
+  (parameter text (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_privacy
+  (parameter action (type Enact.PrivacyDecision))
+  (parameter service (type (array Enact.PrivacyService)))
+  (parameter bundle_id (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.set_status_bar
+  (parameter time (type (optional String)))
+  (parameter data_network (type (optional Enact.DataNetwork)))
+  (parameter wifi_mode (type (optional Enact.WifiMode)))
+  (parameter wifi_bars (type (optional Int)))
+  (parameter cellular_mode (type (optional Enact.CellularMode)))
+  (parameter cellular_bars (type (optional Int)))
+  (parameter operator_name (type (optional String)))
+  (parameter battery_state (type (optional Enact.BatteryState)))
+  (parameter battery_level (type (optional Int)))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.sleep
+  (parameter sec (type Double))
+  (parameter because (type String))
+  (failing argument_refused))
+
+(procedure Enact.Native.swipe
+  (parameter direction (type Enact.Direction))
+  (parameter duration (type Double))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.swipe_between
+  (parameter from (type Enact.Point))
+  (parameter to (type Enact.Point))
+  (parameter duration (type Double))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.swipe_on
+  (parameter on (type Enact.Snapshot))
+  (parameter direction (type Enact.Direction))
+  (parameter duration (type Double))
+  (failing argument_refused device_refused reference_unfit))
+
+(procedure Enact.Native.tap
+  (parameter on (type Enact.Snapshot))
+  (parameter at (type (optional Enact.Point)))
+  (failing argument_refused device_refused reference_unfit))
+
+(procedure Enact.Native.tap_point
+  (parameter at (type Enact.Point))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.terminate_app
+  (parameter bundle_id (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.type_text
+  (parameter text (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.unfold
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.uninstall_app
+  (parameter bundle_id (type String))
+  (failing argument_refused device_refused))
+
+(procedure Enact.Native.within
+  (const)
+  (isolated)
+  (parameter elements (type (array Enact.Snapshot)))
+  (parameter in (type Enact.Snapshot))
+  (returns (array Enact.Snapshot)))
