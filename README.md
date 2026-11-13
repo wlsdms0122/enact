@@ -625,7 +625,9 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   named by the look taken after the input before it, once that look holds still,
   and only where the application showed the same element there when it was
   pressed; a look of a screen that moved on names nothing, and the press is a
-  `tap_point` as for what no look names. What a person meant, as a few swipes
+  `tap_point` as for what no look names. A look taken while an app is still
+  coming to the front or leaving it can hold still on the screen being left, so
+  a press right after one is often a `tap_point`. What a person meant, as a few swipes
   and a tap that look for a row being a `scroll_to`, is the draft's reader's to
   write.
 - `enact device record-input` is the UI test recorder of the Xcode Enact runs

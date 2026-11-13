@@ -164,13 +164,17 @@ struct Draft: AsyncParsableCommand {
             // so the wait for it goes before anything the input writes.
             draft.settle(on: seen)
             
-            for operation in input.written(event, keys: seen?.keys ?? []) {
+            let operations = input.written(event, keys: seen?.keys ?? [])
+            
+            for operation in operations {
                 draft.write(operation, seen: seen, hit: seen?.element(pressedBy: event))
             }
             
             save(draft, to: file)
             
-            if case .gesture = event { seen = await Self.settledLook(by: observer) }
+            // What an input did is read where it comes to rest; a key that only adds
+            // to the text being typed is read once, for the keys it leaves showing.
+            seen = operations.isEmpty ? try? await observer.look() : await Self.settledLook(by: observer)
         }
         
         for operation in input.remaining() {
