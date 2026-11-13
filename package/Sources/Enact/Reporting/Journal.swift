@@ -291,15 +291,15 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
         return true
     }
     
-    // A statement run under a scenario statement names it by the procedure
-    // that statement called.
+    // A statement run under a scenario statement names it by the qualified
+    // name of the procedure that statement called.
     private func name(_ trace: Trace) {
         guard let index = open.lastIndex(where: { candidate in Self.holds(candidate.trace, trace) }),
             open[index].report.kind == nil,
             case let .procedure(called)? = trace.hops.dropFirst(open[index].trace.hops.count).first
         else { return }
         
-        open[index].report.kind = called.split(separator: ".").last.map(String.init) ?? called
+        open[index].report.kind = called
     }
     
     // The round a statement ran in under its parent: a loop's round or the

@@ -482,7 +482,7 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   body it stands in is the scenario's (its procedures and closures), so a verb's
   own statements in the library stay out. A statement holds the statements that
   ran under it, through the procedures and verbs it called, and its `kind` is the
-  procedure it called. An address is the recorded statements' names joined with
+  procedure it called by its qualified name, `Enact.tap` or `Login.main`. An address is the recorded statements' names joined with
   `/`, the trace Warp hands the observer read down to the scenario's own.
 - A failure is **charged where it happened**: address, evidence (screenshot and
   tree, taken once) and the `failures` entry. The statements it travels out
