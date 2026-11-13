@@ -17,6 +17,7 @@ public struct InputRecording: Sendable {
     }
     
     // MARK: - Public
+    // Ends the recording. Nothing is told once it returns.
     public func stop() async throws {
         try await end()
     }

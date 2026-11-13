@@ -77,6 +77,23 @@ struct InputRecordingDelegateTests {
         #expect(read == key)
     }
     
+    @Test("once ended, nothing more is told")
+    func endedTellsNothing() {
+        // Given
+        let received = Mutex<[InputEvent]>([])
+        let sut = InputRecordingDelegate { event in received.withLock { events in events.append(event) } }
+        
+        sut.recordingSession(NSObject(), didRecordEvent: Event(["tap"]))
+        
+        // When
+        sut.end()
+        sut.recordingSession(NSObject(), didRecordEvent: Event(["tap"]))
+        sut.recordingSession(NSObject(), didRecordApplicationActivated: "com.apple.Preferences")
+        
+        // Then
+        #expect(received.withLock { events in events.count } == 1)
+    }
+    
     @Test("the home button's press is the button, its release nothing, and a gesture is told by its names")
     func buttonsAndGestures() {
         // Given
