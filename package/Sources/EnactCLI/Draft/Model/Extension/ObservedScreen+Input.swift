@@ -12,19 +12,9 @@ import Foundation
 
 extension ObservedScreen {
     // MARK: - Property
-    // Where the software keyboard's keys stand, nil where the look shows none.
-    var keyboard: Element.Frame? {
-        let keys = elements.map(\.snapshot).filter { snapshot in snapshot.role == .key }.map(\.frame)
-        
-        guard let left = keys.map(\.x).min(),
-            let top = keys.map(\.y).min(),
-            let right = keys.map({ frame in frame.x + frame.width }).max(),
-            let bottom = keys.map({ frame in frame.y + frame.height }).max()
-        else {
-            return nil
-        }
-        
-        return Element.Frame(x: left, y: top, width: right - left, height: bottom - top)
+    // The software keyboard's keys the look shows.
+    var keys: [Snapshot] {
+        elements.map(\.snapshot).filter { snapshot in snapshot.role == .key }
     }
     
     // MARK: - Public

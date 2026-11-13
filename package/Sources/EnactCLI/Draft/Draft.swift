@@ -141,7 +141,7 @@ struct Draft: AsyncParsableCommand {
     // The keys typed on the software keyboard in a row are written as one text.
     private func draftInput(of device: Device, seenBy observer: ScreenObserver, to file: URL) async throws {
         var draft = ScenarioDraft(for: file)
-        var typed = ""
+        var input = RecordedInput()
         let (events, received) = AsyncStream<InputEvent>.makeStream()
         let signals = SignalWaiter([SIGINT, SIGTERM])
         defer { signals.disarm() }
@@ -160,26 +160,12 @@ struct Draft: AsyncParsableCommand {
         }
         
         for await event in events {
-            let tap = DraftOperation.keyTap(event, keyboard: seen?.keyboard)
+            // The screen an input was given on is the one the input before led to,
+            // so the wait for it goes before anything the input writes.
+            draft.settle(on: seen)
             
-            if case let .character(character) = tap {
-                typed += character
-            } else if tap != .changesKeyboard {
-                if !typed.isEmpty {
-                    draft.write(.call(.call("type_text", [DraftNode.Entry("text", .quoted(typed))])), seen: nil, hit: nil)
-                    typed = ""
-                }
-                
-                let operations: [DraftOperation] = if case let .key(key) = tap {
-                    [.comment("the software keyboard's \"\(key)\" key was tapped")]
-                } else {
-                    DraftOperation.written(event)
-                }
-                
-                for operation in operations {
-                    draft.settle(on: seen)
-                    draft.write(operation, seen: seen, hit: seen?.element(pressedBy: event))
-                }
+            for operation in input.written(event, keys: seen?.keys ?? []) {
+                draft.write(operation, seen: seen, hit: seen?.element(pressedBy: event))
             }
             
             save(draft, to: file)
@@ -187,8 +173,8 @@ struct Draft: AsyncParsableCommand {
             if case .gesture = event { seen = await Self.settledLook(by: observer) }
         }
         
-        if !typed.isEmpty {
-            draft.write(.call(.call("type_text", [DraftNode.Entry("text", .quoted(typed))])), seen: nil, hit: nil)
+        for operation in input.remaining() {
+            draft.write(operation, seen: nil, hit: nil)
         }
         
         draft.settle(on: seen)

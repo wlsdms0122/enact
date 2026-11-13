@@ -61,20 +61,16 @@ struct ObservedScreenInputTests {
         #expect(pressed == nil)
     }
     
-    @Test("the keyboard is where the look's keys stand")
-    func theKeyboard() {
+    @Test("the keys are the software keyboard's the look shows")
+    func theKeys() {
         // Given
-        let keys = [
-            Element(label: "q", role: .key, frame: Element.Frame(x: 5, y: 600, width: 40, height: 50)),
-            Element(label: "m", role: .key, frame: Element.Frame(x: 300, y: 720, width: 40, height: 50))
-        ]
+        let key = Element(label: "q", role: .key, frame: Element.Frame(x: 5, y: 600, width: 40, height: 50))
         
         // When
-        let sut = look(keys + [button])
+        let sut = look([key, button])
         
         // Then
-        #expect(sut.keyboard == Element.Frame(x: 5, y: 600, width: 335, height: 170))
-        #expect(look([button]).keyboard == nil)
+        #expect(sut.keys.map(\.label) == ["q"])
     }
     
     // MARK: - Private

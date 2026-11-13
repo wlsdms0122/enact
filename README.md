@@ -617,9 +617,11 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   read from `enact device record-input` until Ctrl-C. A tap, a long press and a
   swipe are written as the lines' are, a swipe by the direction it went
   (`swipe`), as the device tells no more of where it ended. The software
-  keyboard's keys tapped in a row are one `type_text`, and the keys that only
-  change the keyboard are left out; a hardware key is a `press_key` and the home
-  button a `press_button`. The input is told after it was given, so a press is
+  keyboard's keys tapped in a row are one `type_text`, a delete taking back what
+  was typed, and the keys that only change the keyboard are left out; a key that
+  types no text, as Go, is a tap on it. A hardware key is a `press_key`, the home
+  button a `press_button`, and a gesture no verb does, as a double tap, a
+  comment. The input is told after it was given, so a press is
   named by the look taken after the input before it, once that look holds still,
   and only where the application showed the same element there when it was
   pressed; a look of a screen that moved on names nothing, and the press is a
@@ -630,8 +632,9 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   with: each input is a JSON line with the names the device recognized it by
   (`tap`, `long press`, `swipe up`, …), where it began, the element
   accessibility answered there (the innermost, as the text inside a button), and
-  the application's tree as it was. Keys, an application coming to the front and
-  a turn of the interface are lines of their own kinds. Simulators only.
+  the application's tree as it was. A button, a hardware key (named as
+  `press-key` takes it), an application coming to the front and a turn of the
+  interface are lines of their own kinds. Simulators only.
 - Waiting is not a command. What counts as there, and for how long, is a
   scenario's, so a wait from the shell is a scenario on stdin:
 

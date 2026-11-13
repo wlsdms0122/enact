@@ -1,5 +1,5 @@
 //
-//  DraftOperationInputTests.swift
+//  RecordedInputTests.swift
 //  EnactCLITests
 //
 //  Created by JSilver on 11/13/26.
@@ -9,29 +9,34 @@ import Foundation
 import Testing
 @testable import Digit
 @testable import EnactCLI
+@testable import EnactWarp
 
 @Suite("A draft writes recorded input by the verb that does the same")
-struct DraftOperationInputTests {
+struct RecordedInputTests {
     // MARK: - Property
-    private let keyboard = Element.Frame(x: 0, y: 600, width: 400, height: 200)
+    // A row of keys across the bottom of the screen, the one under a tap not named.
+    private let keys = [
+        Snapshot(Element(label: "q", role: .key, frame: Element.Frame(x: 0, y: 600, width: 40, height: 50)), at: [0]),
+        Snapshot(Element(label: "p", role: .key, frame: Element.Frame(x: 360, y: 750, width: 40, height: 50)), at: [1]),
+        Snapshot(Element(label: "o", role: .key, frame: Element.Frame(x: 300, y: 600, width: 40, height: 50)), at: [2])
+    ]
     
     // MARK: - Initializer
     // MARK: - Test
     @Test("a tap, a long press and a swipe are presses at where they began, a swipe by its direction")
     func gesturesArePresses() {
         // Given
-        let tap = gesture("tap", duration: 0.08)
-        let press = gesture("long press", duration: 1.02)
-        let swipe = gesture("swipe up", duration: 0.04)
+        var sut = RecordedInput()
         
         // When
-        let written = [tap, press, swipe].map(DraftOperation.written)
+        let written = [gesture("tap", duration: 0.08), gesture("long press", duration: 1.02), gesture("swipe up", duration: 0.04)]
+            .flatMap { event in sut.written(event, keys: []) }
         
         // Then
-        guard written.allSatisfy({ operations in operations.count == 1 }),
-            case let .tap(tapped) = written[0][0],
-            case let .longPress(held, duration) = written[1][0],
-            case let .swipe(swiped, direction, swipeDuration) = written[2][0]
+        guard written.count == 3,
+            case let .tap(tapped) = written[0],
+            case let .longPress(held, duration) = written[1],
+            case let .swipe(swiped, direction, swipeDuration) = written[2]
         else {
             Issue.record("\(written) are not a tap, a long press and a swipe")
             
@@ -44,87 +49,82 @@ struct DraftOperationInputTests {
         #expect(swipeDuration == 0.1)
     }
     
-    @Test("the home button is pressed, the device's other halves of a press are not written, and no verb's gesture is a comment")
-    func buttonsAndOtherGestures() {
+    @Test("a button and a hardware key are pressed, and a gesture no verb does, a double tap among them, is a comment")
+    func buttonsKeysAndOtherGestures() {
         // Given
-        let home = gesture("XCUIEventTypeMenuButtonDown", point: nil)
-        let release = gesture("XCUIEventTypeACHomeUp", point: nil)
-        let pinch = gesture("pinch")
-        
-        // When
-        let written = [home, release, pinch].map(DraftOperation.written)
-        
-        // Then
-        guard case let .call(call)? = written[0].first, case let .comment(comment)? = written[2].first else {
-            Issue.record("\(written) are not a call and a comment")
-            
-            return
-        }
-        
-        #expect(call.flow == "{ call: { procedure: press_button, arguments: { button: { case: home } } } }")
-        #expect(written[1].isEmpty)
-        #expect(comment == "no verb does the gesture 'pinch' at 10.0,20.0")
-    }
-    
-    @Test(
-        "a hardware key is pressed by what it makes, by its word where it has one, with the modifiers but shift",
-        arguments: [
-            ("a", "a", 0, #"{ key: "a" }"#),
-            ("A", "a", 1 << 17, #"{ key: "A" }"#),
-            ("\r", "\r", 0, #"{ key: "return" }"#),
-            ("c", "c", 1 << 20, #"{ key: "c", modifiers: [ { case: command } ] }"#)
-        ] as [(String, String, UInt64, String)]
-    )
-    func keysArePressed(characters: String, unmodified: String, modifiers: UInt64, arguments: String) {
-        // Given
-        let keys = InputEvent.keys(InputEvent.Keys(characters: characters, unmodified: unmodified, modifiers: modifiers))
-        
-        // When
-        let written = DraftOperation.written(keys)
-        
-        // Then
-        guard written.count == 1, case let .call(call) = written[0] else {
-            Issue.record("\(written) is not a call")
-            
-            return
-        }
-        
-        #expect(call.flow == "{ call: { procedure: press_key, arguments: \(arguments) } }")
-    }
-    
-    @Test(
-        "a tap on a software key types its character, or changes the keyboard, or is the key itself",
-        arguments: [
-            ("a", DraftOperation.KeyTap.character("a")),
-            ("space", .character(" ")),
-            ("shift", .changesKeyboard),
-            ("numbers", .changesKeyboard),
-            ("Go", .key("Go"))
+        var sut = RecordedInput()
+        let events: [InputEvent] = [
+            .button(.home),
+            .key(InputEvent.Key(key: "c", modifiers: [.command])),
+            .key(InputEvent.Key(key: "home", modifiers: [])),
+            gesture("double tap")
         ]
-    )
-    func softwareKeys(label: String, tap: DraftOperation.KeyTap) {
-        // Given
-        let key = gesture("tap", element: Element(label: label, role: .key, frame: Element.Frame(x: 0, y: 610, width: 40, height: 50)))
         
         // When
-        let sut = DraftOperation.keyTap(key, keyboard: keyboard)
+        let written = events.flatMap { event in sut.written(event, keys: []) }
         
         // Then
-        #expect(sut == tap)
+        #expect(written.map(flow) == [
+            "{ call: { procedure: press_button, arguments: { button: { case: home } } } }",
+            "{ call: { procedure: press_key, arguments: { key: \"c\", modifiers: [ { case: command } ] } } }",
+            "{ call: { procedure: press_key, arguments: { key: \"home\" } } }",
+            "# no verb does the gesture 'double tap' at 10.0,20.0"
+        ])
     }
     
-    @Test("a tap that answers with no key changes the keyboard inside it, and is no key tap outside it")
-    func anUnnamedTapInsideTheKeyboard() {
+    @Test("keys tapped in a row are one text, written when input of another kind comes or the input ends, and a delete takes back what was typed")
+    func keysTappedInARowAreOneText() {
         // Given
-        let blank = Element(role: .image, frame: Element.Frame(x: 0, y: 0, width: 10, height: 10))
-        let inside = gesture("tap", point: Point(x: 30, y: 700), element: blank)
-        let outside = gesture("tap", point: Point(x: 30, y: 100), element: blank)
+        var sut = RecordedInput()
+        let typing = ["shift", "H", "i", "x", "delete", "space", "y"].map { label in key(label) }
         
         // When
-        let taps = [inside, outside].map { event in DraftOperation.keyTap(event, keyboard: keyboard) }
+        let written = typing.flatMap { event in sut.written(event, keys: keys) }
+        let ended = sut.remaining()
+        let again = sut.remaining()
         
         // Then
-        #expect(taps == [.changesKeyboard, nil])
+        #expect(written.isEmpty)
+        #expect(ended.map(flow) == ["{ call: { procedure: type_text, arguments: { text: \"Hi y\" } } }"])
+        #expect(again.isEmpty)
+    }
+    
+    @Test("a key that types no text, as Go or a delete with nothing typed, is a tap on it after the text typed before")
+    func aKeyThatTypesNoTextIsATap() {
+        // Given
+        var sut = RecordedInput()
+        
+        // When
+        let typed = [key("a"), key("Go")].flatMap { event in sut.written(event, keys: keys) }
+        let erased = sut.written(key("delete"), keys: keys)
+        
+        // Then
+        guard typed.count == 2, case .tap = typed[1], erased.count == 1, case .tap = erased[0] else {
+            Issue.record("\(typed) and \(erased) are not the text and the taps")
+            
+            return
+        }
+        
+        #expect(flow(typed[0]) == "{ call: { procedure: type_text, arguments: { text: \"a\" } } }")
+    }
+    
+    @Test("a tap that answers with no key is the look's key at its point, else changes the keyboard inside it, and is a tap outside it")
+    func aTapThatAnswersWithNoKey() {
+        // Given
+        var sut = RecordedInput()
+        let blank = Element(role: .container, frame: Element.Frame(x: 0, y: 0, width: 10, height: 10))
+        
+        // When
+        let onKey = sut.written(gesture("tap", point: Point(x: 320, y: 620), element: blank), keys: keys)
+        let inside = sut.written(gesture("tap", point: Point(x: 100, y: 700), element: blank), keys: keys)
+        let typed = sut.remaining()
+        let outside = sut.written(gesture("tap", point: Point(x: 30, y: 100), element: blank), keys: keys)
+        
+        // Then
+        #expect(onKey.isEmpty)
+        #expect(inside.isEmpty)
+        #expect(typed.map(flow) == ["{ call: { procedure: type_text, arguments: { text: \"o\" } } }"])
+        #expect(outside.count == 1)
     }
     
     // MARK: - Private
@@ -135,5 +135,22 @@ struct DraftOperationInputTests {
         element: Element? = nil
     ) -> InputEvent {
         .gesture(InputEvent.Gesture(names: [name], time: Date(), duration: duration, point: point, element: element, application: nil))
+    }
+    
+    private func key(_ label: String) -> InputEvent {
+        gesture("tap", point: Point(x: 20, y: 650), element: Element(label: label, role: .key, frame: Element.Frame(x: 0, y: 610, width: 40, height: 50)))
+    }
+    
+    private func flow(_ operation: DraftOperation) -> String {
+        switch operation {
+        case let .call(call):
+            call.flow
+        
+        case let .comment(comment):
+            "# \(comment)"
+        
+        default:
+            "\(operation)"
+        }
     }
 }
