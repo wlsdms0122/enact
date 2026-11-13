@@ -69,10 +69,13 @@ struct RecordedInput {
     // MARK: - Private
     // Nil for an input that is no tap on the software keyboard. The key is what
     // accessibility answered, else the look's key at the point, as the device can
-    // answer with no key while the keyboard redraws its keys. A tap inside the
-    // keyboard that names no key types nothing and is taken to change it.
+    // answer with a nameless element while the keyboard redraws its keys. A tap
+    // inside the keyboard that names no key types nothing and is taken to change it.
     private static func keyTap(_ event: InputEvent, keys: [Snapshot]) -> KeyTap? {
         guard case let .gesture(gesture) = event, gesture.names == ["tap"], let point = gesture.point else { return nil }
+        
+        // An element of another role with a name of its own is no key drawn over.
+        if let element = gesture.element, element.role != .key, element.label != nil || element.id != nil { return nil }
         
         let answered = gesture.element.flatMap { element in element.role == .key ? element.label : nil }
         let label = answered ?? keys.last { key in contains(key.frame, point) }?.label

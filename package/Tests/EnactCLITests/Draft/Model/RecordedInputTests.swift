@@ -127,6 +127,20 @@ struct RecordedInputTests {
         #expect(outside.count == 1)
     }
     
+    @Test("a tap that answers with a named element of another role is a tap, though the look's keys were under it")
+    func aTapThatAnswersWithANamedElement() {
+        // Given
+        var sut = RecordedInput()
+        let row = Element(label: "General", role: .button, frame: Element.Frame(x: 0, y: 600, width: 400, height: 50))
+        
+        // When
+        let written = sut.written(gesture("tap", point: Point(x: 320, y: 620), element: row), keys: keys)
+        
+        // Then
+        #expect(written.count == 1)
+        #expect(sut.remaining().isEmpty)
+    }
+    
     // MARK: - Private
     private func gesture(
         _ name: String,
