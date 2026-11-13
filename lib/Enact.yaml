@@ -150,6 +150,18 @@ procedures:
         procedure: Enact.Native.drag_on
         arguments: [ { ref: on }, { ref: direction }, { ref: duration } ]
 
+  drag_toward:
+    description: Drags inside a snapshot so an element in it moves toward the middle of the part the screen shows, along each way it is not already inside that part, and lets go at rest. One stroke moves no further than a drag_on's, and an element already inside moves nothing.
+    access: public
+    parameters:
+      - on: { type: "Enact.Snapshot", hint: "what to drag in, such as a list, from a look" }
+      - element: { type: "Enact.Snapshot", hint: "what to bring in, from a look, on the screen or off it" }
+    failing: [device_refused, argument_refused, reference_unfit]
+    result:
+      call:
+        procedure: Enact.Native.drag_toward
+        arguments: [ { ref: on }, { ref: element } ]
+
   respond_biometric:
     description: Answers a Face ID or Touch ID prompt.
     access: public
@@ -748,7 +760,7 @@ procedures:
     result: { ref: "found[0]" }
 
   scroll_to:
-    description: Drags inside a snapshot, most of the part of it the screen shows at a time and coming to rest each time, until an element that where holds of is shown whole in it and stays put, and returns the first in reading order. An element larger than the part shown, or one cut on the side the content moves toward, is never shown whole and runs to timed_out.
+    description: Drags inside a snapshot until an element that where holds of is shown whole in it and stays put, and returns the first in reading order. While the tree holds none, each round drags in direction; once it holds one, on the screen or off it, each round drags that one toward the middle. A drag comes to rest before it lets go, so the content stops where the stroke does. An element about as large as the part shown, or larger, is never shown whole and runs to timed_out.
     access: public
     parameters:
       - where: { type: "const isolated (Enact.Snapshot) -> Bool", hint: "whether an element is the one scrolled to" }
@@ -773,18 +785,18 @@ procedures:
                     - let: seen
                       value: { call: { procedure: look } }
                     - let: matched
-                      value:
-                        call:
-                          procedure: fully_visible
-                          arguments:
-                            elements: { of: { ref: seen.elements }, filter: { ref: where } }
-                            in: { ref: on }
-                            screen: { ref: seen }
+                      value: { of: { ref: seen.elements }, filter: { ref: where } }
+                    - let: whole
+                      value: { call: { procedure: fully_visible, arguments: { elements: { ref: matched }, in: { ref: on }, screen: { ref: seen } } } }
                     - value:
                         cases:
+                          - when: { of: { count: { ref: whole } }, greater_than: 0 }
+                            then: []
                           - when: { of: { count: { ref: matched } }, is: 0 }
                             then:
                               - value: { call: { procedure: drag_on, arguments: { on: { ref: on }, direction: { ref: direction } } } }
-                  result: { ref: matched }
+                          - else:
+                              - value: { call: { procedure: drag_toward, arguments: { on: { ref: on }, element: { ref: "matched[0]" } } } }
+                  result: { ref: whole }
               until: { closure: { parameters: [ held: "Array<Enact.Snapshot>" ], result: { of: { count: { ref: held } }, greater_than: 0 } } }
     result: { ref: "found[0]" }

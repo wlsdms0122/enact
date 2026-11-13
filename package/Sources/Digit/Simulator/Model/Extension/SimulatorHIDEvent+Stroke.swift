@@ -41,7 +41,7 @@ extension SimulatorHIDEvent {
         let samples = max(Int((hold * 60).rounded(.up)), 1)
         let across = (x: -height / length * 0.5, y: width / length * 0.5)
         let rest = (0..<samples).flatMap { sample in
-            let side = sample % 2 == 0 ? 1.0 : 0
+            let side = (samples - sample) % 2 == 0 ? 1.0 : 0
             
             return [
                 SimulatorHIDEvent.delay(hold / Double(samples)),

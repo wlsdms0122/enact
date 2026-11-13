@@ -76,6 +76,7 @@ package struct EnactVocabulary: Sendable {
         "swipe_on": SwipeOnAction.self,
         "drag": DragAction.self,
         "drag_on": DragOnAction.self,
+        "drag_toward": DragTowardAction.self,
         "respond_biometric": RespondBiometricAction.self,
         "launch_app": LaunchAppAction.self,
         "terminate_app": TerminateAppAction.self,

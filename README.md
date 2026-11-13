@@ -307,6 +307,7 @@ native, so it says nothing a scenario could not say itself.
 | `press_button` | `button` |
 | `swipe` | `direction`, `duration = 0.2` |
 | `swipe_on`, `drag_on` | `on: Enact.Snapshot`, `direction`, `duration = 0.2` |
+| `drag_toward` | `on: Enact.Snapshot`, `element: Enact.Snapshot`: one drag moving the element toward the middle of what `on` shows, as far as a `drag_on` |
 | `swipe_between`, `drag` | `from: Enact.Point`, `to: Enact.Point`, `duration = 0.2` |
 | `respond_biometric` | `outcome = "match"` |
 | `launch_app` | `bundle_id`, `args = []`, `locale?`, `language?`; an app already running is launched anew. It returns once the process starts, and until the app draws, a look reads the app that was in front or none of this one; `app_state` tells whether it is in front yet |
@@ -343,7 +344,7 @@ native, so it says nothing a scenario could not say itself.
 | `paste_text` | `text`: `set_pasteboard`, then command-V. For text no key types; what was on the pasteboard is replaced |
 | `clear_text` | none: command-A, then delete once, which leave the software keyboard up. A field that keeps command-A from selecting loses only the character before the caret; whether it is empty is read from a look |
 | `wait_for` | `where`, `timeout = 10`, `debounce = 0.5`, returns the snapshot |
-| `scroll_to` | `where`, `on` (what to drag in), `direction` (the way the content moves), `timeout = 30`, `debounce = 0.5`: `drag_on` each round `where` holds of nothing `on` shows whole, returns the snapshot. An element larger than what `on` shows, or cut on the side the content moves toward, runs to `timed_out` |
+| `scroll_to` | `where`, `on` (what to drag in), `direction` (the way the content moves), `timeout = 30`, `debounce = 0.5`: each round `where` holds of nothing `on` shows whole, `drag_on` in `direction` while the tree holds no match and `drag_toward` the first match once it does, returns the snapshot. An element about as large as what `on` shows runs to `timed_out` |
 
 A verb whose parameters are all defaulted or optional, or that has none, is
 called with no `arguments`.

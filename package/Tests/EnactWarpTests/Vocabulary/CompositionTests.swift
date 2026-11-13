@@ -128,6 +128,26 @@ struct CompositionTests {
         #expect(sut.backend.performed.contains { operation in operation is DragOperator })
     }
     
+    @Test("scroll_to drags what it scrolls to toward the middle once the tree holds it, cut or off the screen", arguments: [
+        (Element.Frame(x: 10, y: 600, width: 80, height: 300), "start: Digit.Point(x: 200.0, y: 575.0), end: Digit.Point(x: 200.0, y: 225.0)"),
+        (Element.Frame(x: 10, y: 50, width: 80, height: 300), "start: Digit.Point(x: 200.0, y: 300.0), end: Digit.Point(x: 200.0, y: 500.0)"),
+        (Element.Frame(x: 10, y: 2000, width: 80, height: 40), "start: Digit.Point(x: 200.0, y: 580.0), end: Digit.Point(x: 200.0, y: 220.0)")
+    ])
+    func scrollToDragsWhatItHoldsTowardTheMiddle(_ frame: Element.Frame, _ stroke: String) async throws {
+        // Given
+        let sut = try DeviceStage(elements: [Element(label: "Save", role: .button, frame: frame)])
+        let arguments = "{ where: \(labeled("Save")), on: \(snapshotLiteral(role: "container", frame: (0, 100, 400, 600))), direction: { case: down }, timeout: 0.3, debounce: 0.1 }"
+        
+        // When
+        let refusal = await #expect(throws: StepFailure.self) {
+            _ = try await sut.run(verbCall("scroll_to", arguments, returns: "Enact.Snapshot"))
+        }
+        
+        // Then
+        #expect(try #require(refusal).kind == .timedOut)
+        #expect(sut.backend.performed.map(String.init(describing:)).first == "DragOperator(stroke: Digit.Stroke(\(stroke), duration: 0.2))")
+    }
+    
     @Test(
         "displayed_text is a field's value, a heading's or a text's label or else its value, and anything else's label",
         arguments: [

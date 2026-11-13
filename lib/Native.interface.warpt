@@ -65,6 +65,11 @@
   (parameter duration (type Double))
   (failing argument_refused device_refused reference_unfit))
 
+(procedure Enact.Native.drag_toward
+  (parameter on (type Enact.Snapshot))
+  (parameter element (type Enact.Snapshot))
+  (failing argument_refused device_refused reference_unfit))
+
 (procedure Enact.Native.element_at
   (parameter at (type Enact.Point))
   (returns (optional Enact.Snapshot))
