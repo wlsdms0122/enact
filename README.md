@@ -332,7 +332,7 @@ native, so it says nothing a scenario could not say itself.
 | `set_pasteboard` | `text`; `device_refused` where the pasteboard does not read it back |
 | `read_pasteboard` | none, returns the text |
 | `screenshot` | `name?`, returns where it was saved |
-| `element_at` | `at: Enact.Point` (a fraction of the screen), returns the snapshot a press there lands on, or none; its `index_path` is empty, as it stands in no look |
+| `element_at` | `at: Enact.Point` (a fraction of the screen), returns the snapshot accessibility answers with there, or none; its `index_path` is empty, as it stands in no look |
 
 | composition | arguments |
 |---|---|
@@ -381,10 +381,14 @@ does not fold refuses them as `device_refused`. A look reads every element
 where the screen shows it, whichever way the screen is turned.
 
 A press lands where the screen shows what was aimed at, or not at all: `tap`
-and `long_press` on a disabled snapshot, or at a point off the screen, are
+and `long_press` on a disabled snapshot, at a point off the screen, or at a
+point where the element answering is neither the snapshot nor inside it, are
 `reference_unfit`, and `swipe_on` swipes across the part of its snapshot the
-screen shows. `tap_point` is for what no look can name, and `element_at` reads
-what a press at a point would land on. What no look names often stands beside
+screen shows. The element answering is read just before the press, so a screen
+that moved since the look, or an element drawn over the snapshot, is caught;
+a view drawn over it that accessibility does not answer for is not, and takes
+the press. `tap_point` is for what no look can name, and `element_at` reads
+the element accessibility answers with at a point. What no look names often stands beside
 what one does, as a menu shown under a field; `screen_point` gives that point
 from the field.
 

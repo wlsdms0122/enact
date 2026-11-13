@@ -165,7 +165,7 @@ struct EnactVocabularyTests {
         let asked = try EnactVocabulary.operations(reachedFrom: entry, in: sut)
         
         // Then
-        #expect(asked == [.tap: ["tap"], .describeScreen: ["swipe", "tap"], .swipe: ["swipe"]])
+        #expect(asked == [.tap: ["tap"], .describeScreen: ["swipe", "tap"], .describeUI: ["tap"], .swipe: ["swipe"]])
     }
     
     @Test("a run that drives no device asks it for nothing")

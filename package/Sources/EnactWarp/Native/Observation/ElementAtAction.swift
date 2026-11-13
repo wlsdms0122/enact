@@ -9,9 +9,8 @@ import Digit
 import Foundation
 import Warp
 
-// Reads the element the screen hit-tests at a point, which a press there
-// lands on, or none where nothing answers. It stands in no look, so its index
-// path is empty.
+// Reads the element accessibility answers with at a point, or none where
+// nothing answers. It stands in no look, so its index path is empty.
 struct ElementAtAction: EnactAction {
     enum Parameters: Int, ParameterSet {
         case at

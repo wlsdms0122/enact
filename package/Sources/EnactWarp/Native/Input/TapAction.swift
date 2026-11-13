@@ -31,16 +31,16 @@ struct TapAction: EnactAction {
     }
     
     // MARK: - Property
-    static let operations: Set<Digit.Operation> = [.describeScreen, .tap]
+    static let operations: Set<Digit.Operation> = [.describeScreen, .describeUI, .tap]
     
     // MARK: - Initializer
     // MARK: - Public
     func act(_ invocation: Invocation<Self>, in environment: EnactEnvironment) async throws -> Warp.Value {
         let snapshot = try invocation.snapshot(.on)
         let fraction = invocation[.at] == .null ? nil : try invocation.fraction(.at)
-        let screen = try await environment.device.run(DescribeScreenOperator())
+        let point = try await snapshot.pressed(at: fraction, on: environment.device)
         
-        try await environment.device.run(TapOperator(at: try snapshot.pressed(at: fraction, on: screen)))
+        try await environment.device.run(TapOperator(at: point))
         
         return .null
     }
