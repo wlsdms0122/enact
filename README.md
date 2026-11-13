@@ -25,6 +25,7 @@ enact run … --verbose                  # every statement, not only the failure
 enact run … --report                   # + the whole record as report.json in --out-dir
 enact run … --stream                   # + journal events as NDJSON on stderr, live
 enact run … --stop-at <address>        # carry out up to a statement and end there, e.g. login/name
+enact run … --stop-before <address>    # end before a statement, carrying out nothing of it
 enact check <scenario>                 # read and build only, no device: the same code as a run's first moment
 enact graph <scenario>                 # what it calls, and what it can ask a device to do
 enact device <op> --udid <udid>        # direct device ops (tap, describe-ui, …)
@@ -505,10 +506,14 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   the path that certainly runs. A capability is a fact about the program the way
   a type is: a verb that could not work if reached is a defect whether or not
   this run arrives at it.
-- **`--stop-at` is observed, not asked for.** The journal watches for the
+- **A stop is observed, not asked for.** The journal watches for the
   address, cancels the run when it sees it, and the runner tells that
-  cancellation from a real one by the journal having seen it. A bounded run is
-  `completed` with `stop: { at, reached }`, and keeps no result. An address
+  cancellation from a real one by the journal having seen it. `--stop-at`
+  cancels once the statement completes, `--stop-before` once it starts, and
+  the statement stays out of the record. A cancelled run starts no device
+  operation, so nothing of a statement stopped before reaches the device. A
+  bounded run is `completed` with `stop: { at, before, reached }`, and keeps
+  no result. An address
   the scenario's statement tree does not have is refused before the run, with
   the addresses of the statements it names; one the run never arrives at is
   reported as never reached.

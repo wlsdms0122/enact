@@ -45,13 +45,60 @@ struct ScenarioRunnerTests {
         let sut = try DeviceStage()
         
         // When
-        let report = try await sut.report(threeSteps, stopAt: "two")
+        let report = try await sut.report(threeSteps, stop: .after("two"))
         
         // Then
         #expect(report.outcome == .completed)
         #expect(report.stop?.reached == true)
         #expect(report.failures.isEmpty)
         #expect(sut.backend.performed.count == 2)
+    }
+    
+    @Test("--stop-before ends the run before the statement it names, which stays out of the record")
+    func aStopBeforeEndsTheRunBeforeIt() async throws {
+        // Given
+        let sut = try DeviceStage()
+        
+        // When
+        let report = try await sut.report(threeSteps, stop: .before("two"))
+        
+        // Then
+        #expect(report.outcome == .completed)
+        #expect(report.stop?.reached == true)
+        #expect(report.stop?.before == true)
+        #expect(report.failures.isEmpty)
+        #expect(report.steps.map(\.path) == ["one"])
+        #expect(sut.backend.performed.count == 1)
+    }
+    
+    @Test("a stop before a statement that calls a procedure runs nothing of the procedure")
+    func aStopBeforeACallRunsNothingOfIt() async throws {
+        // Given
+        let sut = try DeviceStage()
+        let text = """
+        uses: [Enact]
+        procedures:
+          main:
+            access: public
+            failing: anything
+            body:
+              - let: pay
+                value: { call: { procedure: send } }
+          send:
+            failing: anything
+            body:
+              - let: amount
+                value: { call: { procedure: type_text, arguments: { text: a } } }
+        """
+        
+        // When
+        let report = try await sut.report(text, stop: .before("pay"))
+        
+        // Then
+        #expect(report.outcome == .completed)
+        #expect(report.stop?.reached == true)
+        #expect(report.steps.isEmpty)
+        #expect(sut.backend.performed.isEmpty)
     }
     
     @Test("a stop in a branch nobody takes never arrives, and the run goes to its end")
@@ -72,7 +119,7 @@ struct ScenarioRunnerTests {
         """)
         
         // When
-        let report = try await sut.report(text, stopAt: "[0]/hidden")
+        let report = try await sut.report(text, stop: .after("[0]/hidden"))
         
         // Then
         #expect(report.outcome == .completed)
@@ -89,7 +136,7 @@ struct ScenarioRunnerTests {
         let sut = try DeviceStage()
         
         // When
-        let report = try await sut.report(threeSteps, stopAt: address)
+        let report = try await sut.report(threeSteps, stop: .after(address))
         
         // Then
         #expect(report.outcome == .refused)
@@ -116,7 +163,7 @@ struct ScenarioRunnerTests {
         """)
         
         // When
-        let report = try await sut.report(text, stopAt: "inner")
+        let report = try await sut.report(text, stop: .after("inner"))
         
         // Then
         #expect(report.refused == .stopUnknown)

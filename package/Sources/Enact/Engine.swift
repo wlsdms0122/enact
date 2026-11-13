@@ -35,7 +35,7 @@ public struct Engine: Sendable {
         udid: String,
         inputs: [String: String] = [:],
         outputDirectory: URL,
-        stopAt: String? = nil,
+        stop: StopPoint? = nil,
         events: Journal.Sink? = nil,
         record: Bool = false
     ) async -> Report {
@@ -82,7 +82,7 @@ public struct Engine: Sendable {
             device: device,
             lock: DeviceLock(),
             outputDirectory: directory,
-            stopAt: stopAt,
+            stop: stop,
             sink: events
         )
         

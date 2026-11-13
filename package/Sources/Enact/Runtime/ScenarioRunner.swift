@@ -32,7 +32,7 @@ struct ScenarioRunner: Sendable {
         device: Device,
         lock: DeviceLock,
         outputDirectory: OutputDirectory,
-        stopAt: String? = nil,
+        stop: StopPoint? = nil,
         sink: Journal.Sink? = nil
     ) async -> Report {
         let journal = Journal(
@@ -49,10 +49,12 @@ struct ScenarioRunner: Sendable {
         
         // A stop is an address of the scenario's statement tree; whether the run
         // reaches it is the run's to say.
-        let stop = stopAt.map { written in StatementAddress(written.split(separator: "/", omittingEmptySubsequences: false).map(String.init)) }
+        let address = stop.map { stop in
+            StatementAddress(stop.address.split(separator: "/", omittingEmptySubsequences: false).map(String.init))
+        }
         
-        if let stopAt, let stop, !statements.contains(stop) {
-            return journal.refuse(.stopUnknown, unknownStop(stopAt, at: stop, in: statements, of: scenario))
+        if let stop, let address, !statements.contains(address) {
+            return journal.refuse(.stopUnknown, unknownStop(stop, at: address, in: statements, of: scenario))
         }
         
         let asked: [Digit.Operation: Set<String>]
@@ -79,8 +81,8 @@ struct ScenarioRunner: Sendable {
                     arguments: arguments,
                     journal: journal,
                     environment: EnactEnvironment(device: device, outputDirectory: outputDirectory),
-                    stopAt: stopAt,
-                    stop: stop
+                    stop: stop,
+                    at: address
                 )
             }
         } catch DigitError.deviceBusy {
@@ -110,14 +112,15 @@ struct ScenarioRunner: Sendable {
     // Names the addresses that end in the same statement, as a stop written
     // short of where it stands.
     private func unknownStop(
-        _ written: String,
-        at stop: StatementAddress,
+        _ stop: StopPoint,
+        at address: StatementAddress,
         in statements: StatementTree,
         of scenario: String
     ) -> String {
-        let refusal = "--stop-at \(written): no statement of \(scenario) stands at this address"
+        let option = stop.before ? "--stop-before" : "--stop-at"
+        let refusal = "\(option) \(stop.address): no statement of \(scenario) stands at this address"
         
-        guard let last = stop.segments.last else { return refusal }
+        guard let last = address.segments.last else { return refusal }
         
         let named = statements.addresses(named: last).map(\.description)
         
@@ -132,12 +135,16 @@ struct ScenarioRunner: Sendable {
         arguments: [Warp.Name: Warp.Value],
         journal: Journal,
         environment: EnactEnvironment,
-        stopAt: String?,
-        stop: StatementAddress?
+        stop: StopPoint?,
+        at address: StatementAddress?
     ) async -> Report {
         let running = RunningTask()
         
-        journal.bound(at: stop, evidence: { address in await evidence(at: address, in: environment) }) {
+        journal.bound(
+            at: address,
+            before: stop?.before ?? false,
+            evidence: { address in await evidence(at: address, in: environment) }
+        ) {
             running.cancel()
         }
         journal.began()
@@ -145,7 +152,7 @@ struct ScenarioRunner: Sendable {
         let ran = await running.run {
             try await Executor(observer: journal, environment: environment).run(image, entry: entry, arguments: arguments)
         }
-        let stop = stopAt.map { written in Report.Stop(at: written, reached: journal.reachedStop) }
+        let stop = stop.map { stop in Report.Stop(at: stop.address, before: stop.before, reached: journal.reachedStop) }
         
         switch ran {
         case let .success(value):

@@ -27,6 +27,7 @@ public struct Report: Sendable, Encodable {
     public struct Stop: Sendable, Encodable {
         // MARK: - Property
         public let at: String
+        public let before: Bool
         public let reached: Bool
         
         // MARK: - Initializer
