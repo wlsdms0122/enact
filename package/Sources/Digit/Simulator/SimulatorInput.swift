@@ -12,6 +12,7 @@ struct SimulatorInput {
     // MARK: - Property
     private static let swipeDelta: Double = 10
     private static let dragDelta: Double = 1
+    private static let dragHold: TimeInterval = 0.2
     
     var implementations: [Implementation] {
         var implementations: [Implementation] = [
@@ -58,7 +59,7 @@ struct SimulatorInput {
     }
     
     private func drag(_ operation: DragOperator) async throws {
-        try await send(.swipe(operation.stroke, delta: Self.dragDelta))
+        try await send(.drag(operation.stroke, delta: Self.dragDelta, hold: Self.dragHold))
     }
     
     private func typeText(_ operation: TypeTextOperator) async throws {

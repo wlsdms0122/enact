@@ -17,6 +17,11 @@ enum Direction: String, Sendable, CaseIterable {
     case right
     
     // MARK: - Property
+    // How far a stroke reaches, as a fraction of what it crosses.
+    static let reach = far - near
+    
+    private static let (near, middle, far) = (0.2, 0.5, 0.8)
+    
     // MARK: - Initializer
     // MARK: - Public
     // The stroke inside a frame, between a fifth and four fifths of the way
@@ -30,7 +35,7 @@ enum Direction: String, Sendable, CaseIterable {
     // MARK: - Private
     // Where the stroke starts and ends, as fractions of what it crosses.
     private var ends: (start: Point, end: Point) {
-        let (near, middle, far) = (0.2, 0.5, 0.8)
+        let (near, middle, far) = (Self.near, Self.middle, Self.far)
         
         return switch self {
         case .up:

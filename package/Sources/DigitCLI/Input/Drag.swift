@@ -15,7 +15,7 @@ package struct Drag: DeviceCommand {
         commandName: Operation.drag.rawValue,
         abstract: "Drag between two points.",
         discussion:
-            "Traced finely, so the app reads it as a continuous move rather than a flick."
+            "Traced finely and held at its end before letting go, so the app reads a move that comes to rest rather than a flick."
     )
     
     @OptionGroup package var target: DeviceOption

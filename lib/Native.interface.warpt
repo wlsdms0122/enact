@@ -59,6 +59,17 @@
   (parameter duration (type Double))
   (failing argument_refused device_refused))
 
+(procedure Enact.Native.drag_on
+  (parameter on (type Enact.Snapshot))
+  (parameter direction (type Enact.Direction))
+  (parameter duration (type Double))
+  (failing argument_refused device_refused reference_unfit))
+
+(procedure Enact.Native.drag_toward
+  (parameter on (type Enact.Snapshot))
+  (parameter element (type Enact.Snapshot))
+  (failing argument_refused device_refused reference_unfit))
+
 (procedure Enact.Native.element_at
   (parameter at (type Enact.Point))
   (returns (optional Enact.Snapshot))
@@ -69,6 +80,14 @@
 
 (procedure Enact.Native.fold
   (failing argument_refused device_refused))
+
+(procedure Enact.Native.fully_visible
+  (const)
+  (isolated)
+  (parameter elements (type (array Enact.Snapshot)))
+  (parameter in (type Enact.Snapshot))
+  (parameter screen (type Enact.Screen))
+  (returns (array Enact.Snapshot)))
 
 (procedure Enact.Native.in_area
   (const)

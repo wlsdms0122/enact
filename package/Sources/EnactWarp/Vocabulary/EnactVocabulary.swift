@@ -75,6 +75,8 @@ package struct EnactVocabulary: Sendable {
         "swipe_between": SwipeBetweenAction.self,
         "swipe_on": SwipeOnAction.self,
         "drag": DragAction.self,
+        "drag_on": DragOnAction.self,
+        "drag_toward": DragTowardAction.self,
         "respond_biometric": RespondBiometricAction.self,
         "launch_app": LaunchAppAction.self,
         "terminate_app": TerminateAppAction.self,
@@ -120,6 +122,7 @@ package struct EnactVocabulary: Sendable {
     private static let controls: [String: Native] = [
         "within": .query(WithinQuery()),
         "in_area": .query(InAreaQuery()),
+        "fully_visible": .query(FullyVisibleQuery()),
         "nearest": .query(NearestQuery()),
         "repeat": .effect(RepeatAction()),
         "sleep": .effect(SleepAction())

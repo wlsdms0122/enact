@@ -221,7 +221,7 @@ before the elements inside it.
 (about a second on an iOS 26 simulator, 0.7 to 1.4s measured, more for a deeper
 tree); asking it many questions costs nothing more, and two looks are two acts
 at two moments. The questions are Warp's own collection operators
-(`filter`, `first`, `count`, …) and three procedures of the library, each pure:
+(`filter`, `first`, `count`, …) and four procedures of the library, each pure:
 
 - `within(elements, in)` keeps what sits inside a container of the same look, at
   any depth, as the tree the look read says.
@@ -229,6 +229,8 @@ at two moments. The questions are Warp's own collection operators
   given as fractions of its width and height.
 - `nearest(elements, to, screen)` orders by the distance from the middle of each
   to a point of the screen, the nearest first.
+- `fully_visible(elements, in, screen)` keeps what a container shows whole,
+  inside the part of it the screen shows.
 
 What another process draws inside the app, as a web view's content, is not in
 the app's tree and answers only a press at a point. A look finds it by pressing
@@ -304,7 +306,8 @@ native, so it says nothing a scenario could not say itself.
 | `press_key` | `key` (a character or a key's name), `modifiers = []` |
 | `press_button` | `button` |
 | `swipe` | `direction`, `duration = 0.2` |
-| `swipe_on` | `on: Enact.Snapshot`, `direction`, `duration = 0.2` |
+| `swipe_on`, `drag_on` | `on: Enact.Snapshot`, `direction`, `duration = 0.2` |
+| `drag_toward` | `on: Enact.Snapshot`, `element: Enact.Snapshot`: one drag moving the element toward the middle of what `on` shows, as far as a `drag_on` |
 | `swipe_between`, `drag` | `from: Enact.Point`, `to: Enact.Point`, `duration = 0.2` |
 | `respond_biometric` | `outcome = "match"` |
 | `launch_app` | `bundle_id`, `args = []`, `locale?`, `language?`; an app already running is launched anew. It returns once the process starts, and until the app draws, a look reads the app that was in front or none of this one; `app_state` tells whether it is in front yet |
@@ -341,7 +344,7 @@ native, so it says nothing a scenario could not say itself.
 | `paste_text` | `text`: `set_pasteboard`, then command-V. For text no key types; what was on the pasteboard is replaced |
 | `clear_text` | none: command-A, then delete once, which leave the software keyboard up. A field that keeps command-A from selecting loses only the character before the caret; whether it is empty is read from a look |
 | `wait_for` | `where`, `timeout = 10`, `debounce = 0.5`, returns the snapshot |
-| `scroll_to` | `where`, `on` (what to swipe in), `direction` (the way the content moves), `timeout = 30`, `debounce = 0.5`: `swipe_on` each round `where` holds of nothing on the screen, returns the snapshot |
+| `scroll_to` | `where`, `on` (what to drag in), `direction` (the way the content moves), `timeout = 30`, `debounce = 0.5`: each round `where` holds of nothing `on` shows whole, `drag_on` in `direction` while the tree holds no match inside `on` and `drag_toward` the first match once it does, returns the snapshot. `on` keeps its place in the tree while its content scrolls. An element about as large as what `on` shows runs to `timed_out` |
 
 A verb whose parameters are all defaulted or optional, or that has none, is
 called with no `arguments`.
@@ -383,8 +386,10 @@ where the screen shows it, whichever way the screen is turned.
 A press lands where the screen shows what was aimed at, or not at all: `tap`
 and `long_press` on a disabled snapshot, at a point off the screen, or at a
 point where the element answering is neither the snapshot nor inside it, are
-`reference_unfit`, and `swipe_on` swipes across the part of its snapshot the
-screen shows. The element answering is read just before the press, so a screen
+`reference_unfit`, and `swipe_on` and `drag_on` stroke across the part of
+their snapshot the screen shows. A swipe lets go moving, and a list flings on;
+a drag comes to rest before it lets go, and the content stops where the stroke
+does. The element answering is read just before the press, so a screen
 that moved since the look, or an element drawn over the snapshot and reaching
 past it, is caught; one drawn within its frame, or a view accessibility does
 not answer for, is not, and the latter takes the press. `tap_point` is for what no look can name, and `element_at` reads

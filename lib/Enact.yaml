@@ -125,7 +125,7 @@ procedures:
         arguments: [ { ref: on }, { ref: direction }, { ref: duration } ]
 
   drag:
-    description: Presses at one point, moves to another and lets go, each given as fractions of the screen.
+    description: Presses at one point, moves to another and lets go at rest, each given as fractions of the screen, so content dragged moves as far as the stroke and stops.
     access: public
     parameters:
       - from: { type: "Enact.Point", hint: "fractions of the screen" }
@@ -136,6 +136,31 @@ procedures:
       call:
         procedure: Enact.Native.drag
         arguments: [ { ref: from }, { ref: to }, { ref: duration } ]
+
+  drag_on:
+    description: Drags inside a snapshot so its content moves in direction, across the part of it the screen shows, and lets go at rest, so the content moves as far as the stroke and stops.
+    access: public
+    parameters:
+      - on: { type: "Enact.Snapshot", hint: "what to drag in, such as a list, from a look" }
+      - direction: Enact.Direction
+      - duration: { type: "Double", default: 0.2, hint: "seconds the move takes" }
+    failing: [device_refused, argument_refused, reference_unfit]
+    result:
+      call:
+        procedure: Enact.Native.drag_on
+        arguments: [ { ref: on }, { ref: direction }, { ref: duration } ]
+
+  drag_toward:
+    description: Drags inside a snapshot so an element in it moves toward the middle of the part the screen shows, along each way it is not already inside that part and is shorter than it, and lets go at rest. One stroke moves no further than a drag_on's, and a move under about 10 points, too short to read as a drag, is not made.
+    access: public
+    parameters:
+      - on: { type: "Enact.Snapshot", hint: "what to drag in, such as a list, from a look" }
+      - element: { type: "Enact.Snapshot", hint: "what to bring in, from a look, on the screen or off it" }
+    failing: [device_refused, argument_refused, reference_unfit]
+    result:
+      call:
+        procedure: Enact.Native.drag_toward
+        arguments: [ { ref: on }, { ref: element } ]
 
   respond_biometric:
     description: Answers a Face ID or Touch ID prompt.
@@ -555,6 +580,21 @@ procedures:
         procedure: Enact.Native.in_area
         arguments: [ { ref: elements }, { ref: area }, { ref: screen } ]
 
+  fully_visible:
+    description: The snapshots a container shows whole, each inside the part of the container the screen shows.
+    access: public
+    const: true
+    isolated: true
+    parameters:
+      - elements: "Array<Enact.Snapshot>"
+      - in: { type: "Enact.Snapshot", hint: "the container, such as a list" }
+      - screen: { type: "Enact.Screen", hint: "the look the snapshots came from" }
+    returns: "Array<Enact.Snapshot>"
+    result:
+      call:
+        procedure: Enact.Native.fully_visible
+        arguments: [ { ref: elements }, { ref: in }, { ref: screen } ]
+
   nearest:
     description: The snapshots ordered by how far the middle of each is from a point of the screen, the nearest first.
     access: public
@@ -720,11 +760,11 @@ procedures:
     result: { ref: "found[0]" }
 
   scroll_to:
-    description: Swipes inside a snapshot until an element that where holds of is on the screen and stays put, and returns the first in reading order.
+    description: Drags inside a snapshot until an element that where holds of is shown whole in it and stays put, and returns the first in reading order. While the tree holds none inside on, each round drags in direction; once it holds one, on the screen or off it, each round drags that one toward the middle. on keeps its place in the tree while its content scrolls. A drag comes to rest before it lets go, so the content stops where the stroke does. An element about as large as the part shown, or larger, is never shown whole and runs to timed_out.
     access: public
     parameters:
       - where: { type: "const isolated (Enact.Snapshot) -> Bool", hint: "whether an element is the one scrolled to" }
-      - on: { type: "Enact.Snapshot", hint: "what to swipe in, such as a list, from a look" }
+      - on: { type: "Enact.Snapshot", hint: "what to drag in, such as a list, from a look" }
       - direction: { type: Enact.Direction, hint: "the way the content moves, up to bring what is below into view" }
       - timeout: { type: Double, default: 30, hint: "seconds it may scroll before timed_out" }
       - debounce: { type: Double, default: 0.5, hint: "seconds what was found must come back the same, so it is not caught moving" }
@@ -745,12 +785,18 @@ procedures:
                     - let: seen
                       value: { call: { procedure: look } }
                     - let: matched
-                      value: { of: { ref: seen.elements }, filter: { ref: where } }
+                      value: { call: { procedure: within, arguments: { elements: { of: { ref: seen.elements }, filter: { ref: where } }, in: { ref: on } } } }
+                    - let: whole
+                      value: { call: { procedure: fully_visible, arguments: { elements: { ref: matched }, in: { ref: on }, screen: { ref: seen } } } }
                     - value:
                         cases:
+                          - when: { of: { count: { ref: whole } }, greater_than: 0 }
+                            then: []
                           - when: { of: { count: { ref: matched } }, is: 0 }
                             then:
-                              - value: { call: { procedure: swipe_on, arguments: { on: { ref: on }, direction: { ref: direction } } } }
-                  result: { ref: matched }
+                              - value: { call: { procedure: drag_on, arguments: { on: { ref: on }, direction: { ref: direction } } } }
+                          - else:
+                              - value: { call: { procedure: drag_toward, arguments: { on: { ref: on }, element: { ref: "matched[0]" } } } }
+                  result: { ref: whole }
               until: { closure: { parameters: [ held: "Array<Enact.Snapshot>" ], result: { of: { count: { ref: held } }, greater_than: 0 } } }
     result: { ref: "found[0]" }
