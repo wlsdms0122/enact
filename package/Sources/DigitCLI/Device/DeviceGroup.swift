@@ -55,6 +55,7 @@ public struct DeviceGroup: AsyncParsableCommand {
         RecordVideo.self,
         RecordLog.self,
         StreamVideo.self,
+        RecordInput.self,
         Session.self,
         Tap.self,
         LongPress.self,

@@ -22,7 +22,8 @@ struct SimulatorObservation {
             .perform(screenshot),
             .perform(recordVideo),
             .perform(recordLog),
-            .perform(streamVideo)
+            .perform(streamVideo),
+            .perform(recordInput)
         ]
     }
     
@@ -136,5 +137,19 @@ struct SimulatorObservation {
         return VideoStream {
             try await stream.stopStreaming()
         }
+    }
+    
+    // The daemon records the process it is given and follows the screen from there, so
+    // the recording starts at whatever is in front, SpringBoard when no app is.
+    private func recordInput(_ operation: RecordInputOperator) async throws -> InputRecording {
+        let frontmost = try await AccessibilityReader(simulator: simulator).read(.frontmost)
+        let found = frontmost.lazy.compactMap { element in element.pid ?? nil }.first
+        let process = if let found { found } else { try await springBoardProcess() }
+        
+        guard let process else {
+            throw DigitError.recordingFailed(reason: "no process is in front to record")
+        }
+        
+        return try await InputRecorder.start(on: simulator, process: Int32(process), sink: operation.sink)
     }
 }
