@@ -38,11 +38,26 @@ enum InputRecorder {
     ) async throws -> InputRecording {
         try loading.get()
         
-        let queue = DispatchQueue(label: "digit.input-recording")
-        let provider = try connectionProvider(for: simulator)
-        let session = try await recordingSession(through: provider)
-        let delegate = InputRecordingDelegate(sink: sink)
         let configuration = try configuration()
+        let queue = DispatchQueue(label: "digit.input-recording")
+        nonisolated(unsafe) let provider = try connectionProvider(for: simulator)
+        let closeConnection: @Sendable () -> Void = { _ = provider.perform(NSSelectorFromString("invalidate")) }
+        let session: RecordingSession
+        
+        do {
+            session = try await recordingSession(through: provider)
+        } catch {
+            closeConnection()
+            
+            throw error
+        }
+        
+        let delegate = InputRecordingDelegate(sink: sink)
+        nonisolated(unsafe) let held = (session, delegate)
+        let close: @Sendable () -> Void = {
+            held.0.invalidate()
+            closeConnection()
+        }
         
         // The session takes the daemon's calls only once it is the channel's exported
         // object, which the session leaves to whoever holds it.
@@ -56,18 +71,15 @@ enum InputRecorder {
         }
         
         guard started else {
-            session.invalidate()
+            close()
             
             throw DigitError.recordingFailed(reason: "the test daemon did not start recording process \(process)")
         }
         
-        nonisolated(unsafe) let held = (provider, session, delegate)
-        
         return InputRecording {
-            held.1.stopRecording()
-            held.1.invalidate()
-            _ = held.0.perform(NSSelectorFromString("invalidate"))
-            _ = held.2
+            held.0.stopRecording()
+            close()
+            _ = held.1
         }
     }
     

@@ -36,19 +36,23 @@ struct InputEventTests {
         #expect(line.hasSuffix(#""kind":"gesture","names":["tap"],"point":{"x":1,"y":2},"time":10}"#))
     }
     
-    @Test("keys, an application in front and a turn are lines of their own kinds")
+    @Test("a button, a key, an application in front and a turn are lines of their own kinds")
     func otherKindsAreLines() throws {
         // Given
-        let keys = InputEvent.keys(InputEvent.Keys(characters: "A", unmodified: "a", modifiers: 1 << 17))
-        let activation = InputEvent.activation(bundleID: "com.apple.Preferences")
-        let orientation = InputEvent.orientation("landscape")
+        let events: [InputEvent] = [
+            .button(.home),
+            .key(InputEvent.Key(key: "c", modifiers: [.command])),
+            .activation(bundleID: "com.apple.Preferences"),
+            .orientation("landscape")
+        ]
         
         // When
-        let lines = try [keys, activation, orientation].map(line(of:))
+        let lines = try events.map(line(of:))
         
         // Then
         #expect(lines == [
-            #"{"characters":"A","kind":"keys","modifiers":131072,"unmodified":"a"}"#,
+            #"{"button":"home","kind":"button"}"#,
+            #"{"key":"c","kind":"key","modifiers":["command"]}"#,
             #"{"bundle_id":"com.apple.Preferences","kind":"activation"}"#,
             #"{"kind":"orientation","orientation":"landscape"}"#
         ])

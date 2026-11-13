@@ -7,8 +7,8 @@
 
 import Foundation
 
-// Input a device was given, as the device tells it: a person's touch or key, or one
-// Digit sent, alike.
+// Input a device was given, as the device tells it, in the words Digit's own input
+// operations take: a person's touch or key, or one Digit sent, alike.
 public enum InputEvent: Sendable, Encodable {
     // A touch the device recognized, by the names it gave it (tap, long press,
     // swipe up, …), where it began, what answered there, and the application as it
@@ -37,18 +37,17 @@ public enum InputEvent: Sendable, Encodable {
         // MARK: - Private
     }
     
-    // Keys typed on a hardware keyboard, with the characters they made, the ones they
-    // make without the modifiers held, and the modifiers as the device's flags.
-    public struct Keys: Sendable {
+    // A key pressed on a hardware keyboard, as press-key takes it: by its name where
+    // it has one (return, delete, up, …), else the character it made, with the
+    // modifiers held, shift left out where the character already holds it.
+    public struct Key: Sendable, Equatable {
         // MARK: - Property
-        public let characters: String
-        public let unmodified: String
-        public let modifiers: UInt64
+        public let key: String
+        public let modifiers: [Modifier]
         
         // MARK: - Initializer
-        public init(characters: String, unmodified: String, modifiers: UInt64) {
-            self.characters = characters
-            self.unmodified = unmodified
+        public init(key: String, modifiers: [Modifier]) {
+            self.key = key
             self.modifiers = modifiers
         }
         
@@ -64,15 +63,16 @@ public enum InputEvent: Sendable, Encodable {
         case point
         case element
         case application
-        case characters
-        case unmodified
+        case button
+        case key
         case modifiers
         case bundleID = "bundle_id"
         case orientation
     }
     
     case gesture(Gesture)
-    case keys(Keys)
+    case button(Button)
+    case key(Key)
     // An application came to the front.
     case activation(bundleID: String)
     // The interface turned to the orientation named.
@@ -94,11 +94,14 @@ public enum InputEvent: Sendable, Encodable {
             try container.encodeIfPresent(gesture.element, forKey: .element)
             try container.encodeIfPresent(gesture.application, forKey: .application)
         
-        case let .keys(keys):
-            try container.encode("keys", forKey: .kind)
-            try container.encode(keys.characters, forKey: .characters)
-            try container.encode(keys.unmodified, forKey: .unmodified)
-            try container.encode(keys.modifiers, forKey: .modifiers)
+        case let .button(button):
+            try container.encode("button", forKey: .kind)
+            try container.encode(button.rawValue, forKey: .button)
+        
+        case let .key(key):
+            try container.encode("key", forKey: .kind)
+            try container.encode(key.key, forKey: .key)
+            try container.encode(key.modifiers.map(\.rawValue), forKey: .modifiers)
         
         case let .activation(bundleID):
             try container.encode("activation", forKey: .kind)

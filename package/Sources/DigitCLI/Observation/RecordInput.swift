@@ -22,9 +22,10 @@ struct RecordInput: AsyncParsableCommand {
             carries the names the device recognized it by (tap, long press, \
             swipe up, …), where it began, the element accessibility answered \
             there, and the application's tree as it was then; a touch that moved \
-            is told by its direction, and where it ended is not given. Keys typed \
-            on a hardware keyboard, an application coming to the front and the \
-            interface turning are lines of their own kinds. The recording is the \
+            is told by its direction, and where it ended is not given. A key pressed \
+            on a hardware keyboard (named as press-key takes it), the home \
+            button, an application coming to the front and the interface \
+            turning are lines of their own kinds. The recording is the \
             UI test recorder of the Xcode this tool runs with.
             """
     )
