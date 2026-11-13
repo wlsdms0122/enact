@@ -52,7 +52,13 @@ enum InputRecorder {
             throw error
         }
         
-        let delegate = InputRecordingDelegate(sink: sink)
+        // The recording ends once, lost with the daemon or stopped.
+        let (losses, losing) = AsyncStream<DigitError>.makeStream()
+        let lost = Task { await losses.first { _ in true } }
+        let delegate = InputRecordingDelegate(sink: sink) {
+            losing.yield(.recordingFailed(reason: "the device's test daemon ended the recording"))
+            losing.finish()
+        }
         nonisolated(unsafe) let held = (session, delegate)
         let close: @Sendable () -> Void = {
             held.0.invalidate()
@@ -77,16 +83,21 @@ enum InputRecorder {
         }
         
         return InputRecording {
+            await lost.value
+        } end: {
             held.0.stopRecording()
-            close()
             
-            // An event the daemon had already sent may still be on the queue.
+            // An event the daemon had already sent may still be on the queue, and
+            // closing the connection is no loss of a recording already ended.
             await withCheckedContinuation { continuation in
                 queue.async {
                     held.1.end()
                     continuation.resume()
                 }
             }
+            
+            close()
+            losing.finish()
         }
     }
     

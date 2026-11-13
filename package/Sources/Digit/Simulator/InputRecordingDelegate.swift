@@ -27,10 +27,12 @@ final class InputRecordingDelegate: NSObject, @unchecked Sendable {
     
     // Read and ended on the session's callback queue alone.
     private var sink: (@Sendable (InputEvent) -> Void)?
+    private var disconnected: (@Sendable () -> Void)?
     
     // MARK: - Initializer
-    init(sink: @escaping @Sendable (InputEvent) -> Void) {
+    init(sink: @escaping @Sendable (InputEvent) -> Void, disconnected: @escaping @Sendable () -> Void) {
         self.sink = sink
+        self.disconnected = disconnected
     }
     
     // MARK: - Public
@@ -38,6 +40,7 @@ final class InputRecordingDelegate: NSObject, @unchecked Sendable {
     // event being told is told whole before it.
     func end() {
         sink = nil
+        disconnected = nil
     }
     
     @objc(recordingSession:didRecordEvent:)
@@ -92,7 +95,7 @@ final class InputRecordingDelegate: NSObject, @unchecked Sendable {
     
     // The rest of what a session calls its delegate with, which it calls without
     // asking whether the delegate answers: where the text goes and where the focus
-    // is are no input, and a session's end is the recording's own.
+    // is are no input.
     @objc(recordingSession:didRecordFirstResponderChangedWithApplicationSnapshot:)
     func recordingSession(_ session: AnyObject, didRecordFirstResponderChangedWithApplicationSnapshot application: AnyObject?) {}
     
@@ -104,8 +107,14 @@ final class InputRecordingDelegate: NSObject, @unchecked Sendable {
         applicationSnapshot: AnyObject?
     ) {}
     
+    // The daemon is gone, with the device or on its own, and tells nothing more.
     @objc(recordingSessionDidDisconnect:)
-    func recordingSessionDidDisconnect(_ session: AnyObject) {}
+    func recordingSessionDidDisconnect(_ session: AnyObject) {
+        let disconnected = disconnected
+        
+        end()
+        disconnected?()
+    }
     
     // MARK: - Private
     // A character made with no modifier but shift holds the shift itself; a key

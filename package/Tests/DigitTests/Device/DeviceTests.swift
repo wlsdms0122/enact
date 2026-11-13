@@ -83,7 +83,7 @@ struct DeviceTests {
                 .perform({ (operation: RecordVideoOperator) in self.note(operation); return Recording {} }),
                 .perform({ (operation: RecordLogOperator) in self.note(operation); return Recording {} }),
                 .perform({ (operation: StreamVideoOperator) in self.note(operation); return VideoStream {} }),
-                .perform({ (operation: RecordInputOperator) in self.note(operation); return InputRecording {} }),
+                .perform({ (operation: RecordInputOperator) in self.note(operation); return InputRecording(loss: { nil }, end: {}) }),
                 .perform(note as (TapOperator) -> Void),
                 .perform(note as (LongPressOperator) -> Void),
                 .perform(note as (SwipeOperator) -> Void),
