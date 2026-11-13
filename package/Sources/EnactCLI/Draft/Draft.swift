@@ -48,7 +48,8 @@ struct Draft: AsyncParsableCommand {
             With --record-input no line is read: what is written is the input \
             the device is given, a person's taps in the simulator's window as \
             much as anything else's, as enact device record-input reads it, \
-            until Ctrl-C. A swipe is written from where it began, the way it \
+            until Ctrl-C, or until the device ends the recording, as one shut \
+            down does, which fails with what was given so far written. A swipe is written from where it began, the way it \
             went, as far as a swipe reaches, the software \
             keyboard's keys tapped in a row as one type_text, and a press is \
             named by the look taken after the input before it, where the \
@@ -163,6 +164,14 @@ struct Draft: AsyncParsableCommand {
             await signals.wait()
             try await recording.stop()
         }
+        // A recording the device ended is stopped without waiting for a signal.
+        let losing = Task {
+            let lost = await recording.lost()
+            
+            if lost != nil { stopping.cancel() }
+            
+            return lost
+        }
         
         for await (event, told) in events {
             // The screen an input was given on is the one the input before led to,
@@ -195,6 +204,8 @@ struct Draft: AsyncParsableCommand {
         draft.settle(on: seen)
         save(draft, to: file)
         try await stopping.value
+        
+        if let lost = await losing.value { throw lost }
     }
     
     // When an input was given: a gesture tells when it began, and anything else

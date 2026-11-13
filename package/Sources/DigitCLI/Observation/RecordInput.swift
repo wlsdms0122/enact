@@ -17,7 +17,8 @@ struct RecordInput: AsyncParsableCommand {
         discussion: """
             Each input is a line of JSON on standard output, or in --output, as \
             the device tells it, and the command runs until interrupted (Ctrl-C, \
-            or SIGTERM from whoever started it). A person's touch in the \
+            or SIGTERM from whoever started it), or fails once the device ends \
+            the recording, as one shut down does. A person's touch in the \
             simulator's window and one this tool sends are alike. A gesture \
             carries the names the device recognized it by (tap, long press, \
             swipe up, …), where it began, the element accessibility answered \
@@ -47,10 +48,19 @@ struct RecordInput: AsyncParsableCommand {
             }
         )
         
-        await signals.wait()
+        let stopping = Task {
+            await signals.wait()
+            try await recording.stop()
+        }
+        let lost = await recording.lost()
         
-        try await recording.stop()
+        // A recording the device ended is stopped without waiting for a signal.
+        if lost != nil { stopping.cancel() }
+        
+        try await stopping.value
         try destination.close()
+        
+        if let lost { throw lost }
     }
     
     // MARK: - Private
