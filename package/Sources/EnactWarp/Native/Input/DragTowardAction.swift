@@ -11,8 +11,9 @@ import Warp
 
 // Drags inside a snapshot so an element in it moves toward the middle of the
 // part the screen shows, along each way the element is not already inside
-// that part, and lets go at rest. One stroke goes no further than a drag_on's,
-// so an element far off comes closer a stroke at a time.
+// that part and could be, and lets go at rest. One stroke goes no further than
+// a drag_on's, so an element far off comes closer a stroke at a time, and a
+// move too short to be read as a drag is not made.
 struct DragTowardAction: EnactAction {
     enum Parameters: Int, ParameterSet {
         case on
@@ -37,9 +38,9 @@ struct DragTowardAction: EnactAction {
     // MARK: - Property
     static let operations: Set<Digit.Operation> = [.describeScreen, .drag]
     
-    // The longest move a stroke makes, as a fraction of the part shown: as far
-    // as a drag_on's.
-    private static let reach = 0.6
+    // A scroll view follows a finger only once it has moved about this far,
+    // and a shorter stroke can read as a press.
+    private static let hysteresis = 10.0
     private static let duration = 0.2
     
     // MARK: - Initializer
@@ -58,12 +59,12 @@ struct DragTowardAction: EnactAction {
             y: shift(element.frame.y, element.frame.height, into: shown.y, shown.height)
         )
         
-        guard move.x != 0 || move.y != 0 else { return .null }
+        guard hypot(move.x, move.y) >= Self.hysteresis else { return .null }
         
         let middle = shown.center
         let stroke = try Stroke(
-            start: Point(x: middle.x - move.x / 2, y: middle.y - move.y / 2),
-            end: Point(x: middle.x + move.x / 2, y: middle.y + move.y / 2),
+            start: Point(x: (middle.x - move.x / 2).rounded(), y: (middle.y - move.y / 2).rounded()),
+            end: Point(x: (middle.x + move.x / 2).rounded(), y: (middle.y + move.y / 2).rounded()),
             duration: Self.duration
         )
         
@@ -74,12 +75,12 @@ struct DragTowardAction: EnactAction {
     
     // MARK: - Private
     // How far the content moves along one way: none where the element already
-    // lies inside the part shown, else its middle to the part's, as far as a
-    // stroke reaches.
+    // lies inside the part shown, or could not, being as long as it; else its
+    // middle to the part's, as far as a stroke reaches.
     private func shift(_ start: Double, _ length: Double, into shownStart: Double, _ shownLength: Double) -> Double {
-        guard start < shownStart || start + length > shownStart + shownLength else { return 0 }
+        guard length < shownLength, start < shownStart || start + length > shownStart + shownLength else { return 0 }
         
-        let reach = shownLength * Self.reach
+        let reach = shownLength * Direction.reach
         
         return min(max((shownStart + shownLength / 2) - (start + length / 2), -reach), reach)
     }

@@ -164,7 +164,7 @@ enum Library {
                 arguments: [ { ref: on }, { ref: direction }, { ref: duration } ]
         
           drag_toward:
-            description: Drags inside a snapshot so an element in it moves toward the middle of the part the screen shows, along each way it is not already inside that part, and lets go at rest. One stroke moves no further than a drag_on's, and an element already inside moves nothing.
+            description: Drags inside a snapshot so an element in it moves toward the middle of the part the screen shows, along each way it is not already inside that part and is shorter than it, and lets go at rest. One stroke moves no further than a drag_on's, and a move shorter than a drag is read as is not made.
             access: public
             parameters:
               - on: { type: "Enact.Snapshot", hint: "what to drag in, such as a list, from a look" }
@@ -773,7 +773,7 @@ enum Library {
             result: { ref: "found[0]" }
         
           scroll_to:
-            description: Drags inside a snapshot until an element that where holds of is shown whole in it and stays put, and returns the first in reading order. While the tree holds none, each round drags in direction; once it holds one, on the screen or off it, each round drags that one toward the middle. A drag comes to rest before it lets go, so the content stops where the stroke does. An element about as large as the part shown, or larger, is never shown whole and runs to timed_out.
+            description: Drags inside a snapshot until an element that where holds of is shown whole in it and stays put, and returns the first in reading order. While the tree holds none inside on, each round drags in direction; once it holds one, on the screen or off it, each round drags that one toward the middle. on keeps its place in the tree while its content scrolls. A drag comes to rest before it lets go, so the content stops where the stroke does. An element about as large as the part shown, or larger, is never shown whole and runs to timed_out.
             access: public
             parameters:
               - where: { type: "const isolated (Enact.Snapshot) -> Bool", hint: "whether an element is the one scrolled to" }
@@ -798,7 +798,7 @@ enum Library {
                             - let: seen
                               value: { call: { procedure: look } }
                             - let: matched
-                              value: { of: { ref: seen.elements }, filter: { ref: where } }
+                              value: { call: { procedure: within, arguments: { elements: { of: { ref: seen.elements }, filter: { ref: where } }, in: { ref: on } } } }
                             - let: whole
                               value: { call: { procedure: fully_visible, arguments: { elements: { ref: matched }, in: { ref: on }, screen: { ref: seen } } } }
                             - value:

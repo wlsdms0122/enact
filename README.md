@@ -344,7 +344,7 @@ native, so it says nothing a scenario could not say itself.
 | `paste_text` | `text`: `set_pasteboard`, then command-V. For text no key types; what was on the pasteboard is replaced |
 | `clear_text` | none: command-A, then delete once, which leave the software keyboard up. A field that keeps command-A from selecting loses only the character before the caret; whether it is empty is read from a look |
 | `wait_for` | `where`, `timeout = 10`, `debounce = 0.5`, returns the snapshot |
-| `scroll_to` | `where`, `on` (what to drag in), `direction` (the way the content moves), `timeout = 30`, `debounce = 0.5`: each round `where` holds of nothing `on` shows whole, `drag_on` in `direction` while the tree holds no match and `drag_toward` the first match once it does, returns the snapshot. An element about as large as what `on` shows runs to `timed_out` |
+| `scroll_to` | `where`, `on` (what to drag in), `direction` (the way the content moves), `timeout = 30`, `debounce = 0.5`: each round `where` holds of nothing `on` shows whole, `drag_on` in `direction` while the tree holds no match inside `on` and `drag_toward` the first match once it does, returns the snapshot. `on` keeps its place in the tree while its content scrolls. An element about as large as what `on` shows runs to `timed_out` |
 
 A verb whose parameters are all defaulted or optional, or that has none, is
 called with no `arguments`.
