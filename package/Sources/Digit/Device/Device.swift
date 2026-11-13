@@ -29,9 +29,6 @@ public struct Device: @unchecked Sendable {
             throw CapabilityError(operation: O.operation, target: backend.info)
         }
         
-        // A cancelled task starts nothing on the device.
-        guard !Task.isCancelled else { throw DigitError.interrupted }
-        
         // What the device's frameworks throw leaves Digit as a DigitError, so a
         // caller tells every failure of an operation by Digit's own errors.
         do {
@@ -60,6 +57,10 @@ public struct Device: @unchecked Sendable {
         guard let start = dispatchTable.body(for: RecordVideoOperator.self) else {
             throw CapabilityError(operation: .recordVideo, target: backend.info)
         }
+        
+        // The lease marks the video open before the recorder starts, so a
+        // cancelled task takes none.
+        guard !Task.isCancelled else { throw DigitError.interrupted }
         
         do {
             return try await VideoLease(lock: lock).recording(on: backend.info.udid, to: path) { lease in
