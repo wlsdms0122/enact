@@ -29,6 +29,9 @@ public struct Device: @unchecked Sendable {
             throw CapabilityError(operation: O.operation, target: backend.info)
         }
         
+        // A cancelled task starts nothing on the device.
+        guard !Task.isCancelled else { throw DigitError.interrupted }
+        
         // What the device's frameworks throw leaves Digit as a DigitError, so a
         // caller tells every failure of an operation by Digit's own errors.
         do {

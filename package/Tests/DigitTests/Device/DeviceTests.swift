@@ -135,6 +135,28 @@ struct DeviceTests {
         #expect(backend.bootCalls == 0)
     }
     
+    @Test("a cancelled task starts no operation on the device")
+    func aCancelledTaskStartsNothing() async {
+        // Given
+        let backend = BootBackend(bootable: true)
+        let sut = Device(backend: backend)
+        
+        // When
+        let ran = Task {
+            withUnsafeCurrentTask { task in task?.cancel() }
+            
+            try await sut.run(BootOperator())
+        }
+        let result = await ran.result
+        
+        // Then
+        guard case let .failure(error) = result, case .interrupted? = error as? DigitError else {
+            Issue.record("expected interrupted, got \(result)")
+            return
+        }
+        #expect(backend.bootCalls == 0)
+    }
+    
     @Test("an operation with a result is refused the same way")
     func unsupportedOperationWithResultFailsLoud() async {
         // Given
