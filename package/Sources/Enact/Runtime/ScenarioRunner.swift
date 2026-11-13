@@ -33,6 +33,7 @@ struct ScenarioRunner: Sendable {
         lock: DeviceLock,
         outputDirectory: OutputDirectory,
         stop: StopPoint? = nil,
+        keepsCaughtEvidence: Bool = false,
         sink: Journal.Sink? = nil
     ) async -> Report {
         let journal = Journal(
@@ -82,7 +83,8 @@ struct ScenarioRunner: Sendable {
                     journal: journal,
                     environment: EnactEnvironment(device: device, outputDirectory: outputDirectory),
                     stop: stop,
-                    at: address
+                    at: address,
+                    keepsCaughtEvidence: keepsCaughtEvidence
                 )
             }
         } catch DigitError.deviceBusy {
@@ -136,14 +138,16 @@ struct ScenarioRunner: Sendable {
         journal: Journal,
         environment: EnactEnvironment,
         stop: StopPoint?,
-        at address: StatementAddress?
+        at address: StatementAddress?,
+        keepsCaughtEvidence: Bool
     ) async -> Report {
         let running = RunningTask()
         
         journal.bound(
             at: address,
             before: stop?.before ?? false,
-            evidence: { address in await evidence(at: address, in: environment) }
+            evidence: { address in await evidence(at: address, in: environment) },
+            discard: keepsCaughtEvidence ? nil : Self.remove
         ) {
             running.cancel()
         }
@@ -190,12 +194,18 @@ struct ScenarioRunner: Sendable {
         }
     }
     
-    // What the screen showed when a statement failed: a screenshot and the
-    // tree, each in the out dir under the statement's address.
+    @Sendable private static func remove(_ paths: [String]) {
+        for path in paths { try? FileManager.default.removeItem(atPath: path) }
+    }
+    
+    // What the screen showed when a statement failed: a screenshot, and the
+    // look a scenario would have read with a summary of it, each in the out dir
+    // under the statement's address.
     private func evidence(at address: String, in environment: EnactEnvironment) async -> StepReport.Evidence? {
         let stem = "failed-" + address.replacingOccurrences(of: "/", with: "-")
         var screenshot: String?
-        var tree: String?
+        var written: String?
+        var seen: Look?
         
         if let image = try? await environment.device.run(ScreenshotOperator(format: .png)) {
             screenshot = try? await environment.outputDirectory.write(stem, ext: "png") { destination in
@@ -205,19 +215,24 @@ struct ScenarioRunner: Sendable {
             }
         }
         
-        if let elements = try? await environment.device.run(DescribeUIOperator()) {
+        let screen = try? await environment.device.run(DescribeScreenOperator())
+        let tree = try? await environment.device.run(DescribeUIOperator())
+        
+        if let screen, let tree {
+            let look = Look(screen: screen, tree: tree)
             let encoder = JSONEncoder()
             
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            tree = try? await environment.outputDirectory.write(stem, ext: "json") { destination in
-                try encoder.encode(elements).write(to: destination)
+            seen = look
+            written = try? await environment.outputDirectory.write(stem, ext: "json") { destination in
+                try encoder.encode(look).write(to: destination)
                 
                 return destination.path
             }
         }
         
-        guard screenshot != nil || tree != nil else { return nil }
+        guard screenshot != nil || seen != nil else { return nil }
         
-        return StepReport.Evidence(screenshot: screenshot, tree: tree)
+        return StepReport.Evidence(screenshot: screenshot, look: written, summary: seen.map(ScreenSummary.init))
     }
 }

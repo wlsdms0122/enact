@@ -21,20 +21,10 @@ struct LookAction: EnactAction {
     // MARK: - Public
     func act(_ invocation: Invocation<Self>, in environment: EnactEnvironment) async throws -> Warp.Value {
         let screen = try await environment.device.run(DescribeScreenOperator())
-        let elements = try await environment.device.run(DescribeUIOperator())
-        let fields: [(name: Warp.Name, value: Warp.Value)] = [
-            (name: "width", value: .double(screen.width)),
-            (name: "height", value: .double(screen.height)),
-            (name: "elements", value: .array(try flattened(elements, under: []).map(Warp.Value.init)))
-        ]
+        let tree = try await environment.device.run(DescribeUIOperator())
         
-        return try .holding(fields, named: EnactVocabulary.screenType)
+        return try Look(screen: screen, tree: tree).value
     }
     
     // MARK: - Private
-    private func flattened(_ elements: [Element], under path: [Int]) -> [Snapshot] {
-        elements.enumerated().flatMap { index, element in
-            [Snapshot(element, at: path + [index])] + flattened(element.children, under: path + [index])
-        }
-    }
 }

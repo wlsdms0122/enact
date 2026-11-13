@@ -234,7 +234,66 @@ struct ScenarioRunnerTests {
         
         #expect(report.recordings.map { path in URL(fileURLWithPath: path).lastPathComponent } == ["walk.mp4"])
         #expect(evidence.screenshot.map { path in URL(fileURLWithPath: path).lastPathComponent } == "failed-wait.png")
-        #expect(evidence.tree.map { path in URL(fileURLWithPath: path).lastPathComponent } == "failed-wait.json")
+        #expect(evidence.look.map { path in URL(fileURLWithPath: path).lastPathComponent } == "failed-wait.json")
+    }
+    
+    @Test("a failed statement's evidence sums up the screen: its headings, buttons and fields, by label or else value")
+    func evidenceSumsUpTheScreen() async throws {
+        // Given
+        let sut = try DeviceStage(elements: [
+            Element(label: "Transfer", role: .heading, frame: Element.Frame(x: 0, y: 0, width: 400, height: 40)),
+            Element(label: "Amount", value: "0", role: .field, frame: Element.Frame(x: 0, y: 60, width: 400, height: 40)),
+            Element(label: "", value: "Memo", role: .field, frame: Element.Frame(x: 0, y: 110, width: 400, height: 40)),
+            Element(label: "Send", role: .button, frame: Element.Frame(x: 0, y: 700, width: 400, height: 40)),
+            Element(label: "Balance", role: .text, frame: Element.Frame(x: 0, y: 160, width: 400, height: 20))
+        ])
+        let text = scenarioFile("""
+        failing: anything
+        body:
+          - let: wait
+            value: { call: { procedure: sleep, arguments: { sec: -1, because: never } } }
+        """)
+        
+        // When
+        let report = try await sut.report(text)
+        
+        // Then
+        let summary = try #require(report.steps.last?.evidence?.summary)
+        
+        #expect(summary.headings == ["Transfer"])
+        #expect(summary.buttons == ["Send"])
+        #expect(summary.fields == ["Amount", "Memo"])
+        #expect(report.plain.contains("screen  heading 'Transfer' · button 'Send' · field 'Amount', 'Memo'"), "\(report.plain)")
+    }
+    
+    @Test("a failure a try caught leaves no evidence, unless the run keeps it", arguments: [false, true])
+    func aCaughtFailureLeavesNoEvidence(_ keeps: Bool) async throws {
+        // Given
+        let sut = try DeviceStage()
+        let text = scenarioFile("""
+        failing: anything
+        body:
+          - let: tried
+            value:
+              try:
+                body:
+                  - let: wait
+                    value: { call: { procedure: sleep, arguments: { sec: -1, because: never } } }
+                catch:
+                  - let: noted
+                    value: 1
+        """)
+        
+        // When
+        let report = try await sut.report(text, keepsCaughtEvidence: keeps)
+        
+        // Then
+        let tried = try #require(report.steps.first)
+        let wait = try #require(tried.steps?.first { step in step.id == "wait" })
+        
+        #expect(tried.rescued == true)
+        #expect(wait.status == .failed)
+        #expect((wait.evidence != nil) == keeps)
     }
     
     @Test("a video the run lost is reported lost, with why, and not listed with the videos it landed")

@@ -62,6 +62,12 @@ struct Run: AsyncParsableCommand {
     var stopBefore: String?
     
     @Flag(
+        name: .customLong("keep-caught-evidence"),
+        help: "Keep the screenshot and look a failure left where a try caught it; by default they go with it."
+    )
+    var keepCaughtEvidence = false
+    
+    @Flag(
         name: .customLong("stream"),
         help: "Emit journal events as NDJSON on stderr while the run goes."
     )
@@ -124,7 +130,7 @@ struct Run: AsyncParsableCommand {
         
         let entry = try scenario.entry()
         let engine = try Engine()
-        let work = Task { [entry, udid, outputDirectory, stop, report] in
+        let work = Task { [entry, udid, outputDirectory, stop, report, keepCaughtEvidence] in
             await engine.run(
                 entry.name,
                 store: entry.store,
@@ -132,6 +138,7 @@ struct Run: AsyncParsableCommand {
                 inputs: inputs,
                 outputDirectory: URL(fileURLWithPath: outputDirectory, isDirectory: true),
                 stop: stop,
+                keepsCaughtEvidence: keepCaughtEvidence,
                 events: events,
                 record: report
             )

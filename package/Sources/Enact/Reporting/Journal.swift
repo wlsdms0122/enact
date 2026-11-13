@@ -65,6 +65,7 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
     
     public typealias Sink = @Sendable (Event) -> Void
     typealias Evidence = @Sendable (String) async -> StepReport.Evidence?
+    typealias Discard = @Sendable ([String]) -> Void
     
     // MARK: - Property
     let scenario: String
@@ -78,6 +79,7 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
     private let sink: Sink?
     private let lock = NSLock()
     private var evidence: Evidence?
+    private var discard: Discard?
     private var stopAt: StatementAddress?
     private var stopsBefore = false
     private var onStop: (@Sendable () -> Void)?
@@ -202,16 +204,32 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
         }
     }
     
+    // A caught failure is no failure of the run, and where the run discards
+    // evidence, the evidence its statements took goes with the charge.
     public func failureCaught(name: String?, error: any Error) async {
-        lock.withLock {
-            guard !open.isEmpty else { return }
+        let dropped: [String] = lock.withLock {
+            guard !open.isEmpty else { return [] }
             
-            open[open.count - 1].report.rescued = true
+            let last = open.count - 1
             
-            let mark = open[open.count - 1].chargeMark
+            open[last].report.rescued = true
+            
+            let mark = open[last].chargeMark
             
             if mark < charged.count { charged.removeSubrange(mark...) }
+            
+            guard discard != nil else { return [] }
+            
+            var paths = Self.dropEvidence(of: &open[last].children)
+            
+            for round in open[last].rounds.keys {
+                paths += Self.dropEvidence(of: &open[last].rounds[round, default: []])
+            }
+            
+            return paths
         }
+        
+        if !dropped.isEmpty { discard?(dropped) }
     }
     
     // MARK: - Public
@@ -219,12 +237,14 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
         at address: StatementAddress?,
         before: Bool,
         evidence: Evidence?,
+        discard: Discard? = nil,
         _ stop: @escaping @Sendable () -> Void
     ) {
         lock.withLock {
             self.stopAt = address
             self.stopsBefore = before
             self.evidence = evidence
+            self.discard = discard
             self.onStop = stop
         }
     }
@@ -285,6 +305,36 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
         guard case let .statement(name) = hop else { return "" }
         
         return name
+    }
+    
+    // Takes the evidence off the steps and every step under them, and says
+    // which files it was.
+    private static func dropEvidence(of steps: inout [StepReport]) -> [String] {
+        var paths: [String] = []
+        
+        steps = steps.map { step in
+            var step = step
+            
+            paths += [step.evidence?.screenshot, step.evidence?.look].compactMap { path in path }
+            step.evidence = nil
+            
+            if var children = step.steps {
+                paths += dropEvidence(of: &children)
+                step.steps = children
+            }
+            
+            step.rounds = step.rounds?.map { round in
+                var inner = round.steps
+                
+                paths += dropEvidence(of: &inner)
+                
+                return StepReport.Round(index: round.index, steps: inner)
+            }
+            
+            return step
+        }
+        
+        return paths
     }
     
     // Whether a run at the inner trace is under the outer one.

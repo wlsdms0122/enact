@@ -28,7 +28,8 @@ public struct StepReport: Sendable, Encodable {
     public struct Evidence: Sendable, Encodable {
         // MARK: - Property
         public let screenshot: String?
-        public let tree: String?
+        public let look: String?
+        public let summary: ScreenSummary?
         
         // MARK: - Initializer
         // MARK: - Public

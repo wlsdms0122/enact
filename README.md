@@ -26,6 +26,8 @@ enact run … --report                   # + the whole record as report.json in 
 enact run … --stream                   # + journal events as NDJSON on stderr, live
 enact run … --stop-at <address>        # carry out up to a statement and end there, e.g. login/name
 enact run … --stop-before <address>    # end before a statement, carrying out nothing of it
+enact run … --keep-caught-evidence     # keep the evidence of a failure a try caught, which goes by default
+enact eval <Module.query> --path <dir> --look <failed.json>   # a query of a screen against a look a failure left, no device
 enact check <scenario>                 # read and build only, no device: the same code as a run's first moment
 enact graph <scenario>                 # what it calls, and what it can ask a device to do
 enact device <op> --udid <udid>        # direct device ops (tap, describe-ui, …)
@@ -285,7 +287,8 @@ Warp failure type, so a `try` takes it and the catch reads the kind:
 ```
 
 - The record still says the statement **failed**, because it did. What a caught
-  failure gives up is its claim on `failures`, the list a verdict is read from.
+  failure gives up is its claim on `failures`, the list a verdict is read from,
+  and its evidence, unless the run keeps it.
 - An interruption (Ctrl-C, a stop) is a cancellation, not a failure, and no
   catch takes it.
 
@@ -494,9 +497,16 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   ran under it, through the procedures and verbs it called, and its `kind` is the
   procedure it called by its qualified name, `Enact.tap` or `Login.main`. An address is the recorded statements' names joined with
   `/`, the trace Warp hands the observer read down to the scenario's own.
-- A failure is **charged where it happened**: address, evidence (screenshot and
-  tree, taken once) and the `failures` entry. The statements it travels out
-  through say `failed` and no more.
+- A failure is **charged where it happened**: address, evidence (taken once:
+  a screenshot, the look a scenario would have read, as JSON, and its
+  `summary`, the screen's headings, buttons and fields, which the plain report
+  prints on a `screen` line) and the `failures` entry. The statements it
+  travels out through say `failed` and no more. A failure a `try` caught is no
+  failure of the run, and its evidence goes with it unless the run is given
+  `--keep-caught-evidence`.
+- The look a failure left is what `enact eval` answers a query of a screen
+  against: a public, const and isolated procedure of one `Enact.Screen`, such
+  as a scenario's own check of which screen is up, run with no device.
 - Rounds: the statements a `repeat` round or a Warp loop ran are written under
   that round.
 - Failure kinds: `timed_out` · `device_refused` · `argument_refused` ·
