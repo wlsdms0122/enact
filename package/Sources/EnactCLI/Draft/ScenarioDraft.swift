@@ -107,6 +107,13 @@ struct ScenarioDraft {
                 ]
             ))
         
+        case let .swipe(_, direction, duration):
+            if let pressed {
+                append(.call("wait_for", [DraftNode.Entry("where", pressed.catch.where)]), comments: comments(on: pressed))
+            }
+            
+            append(.call("swipe", [DraftNode.Entry("direction", .enumCase(direction)), DraftNode.Entry("duration", .number(duration))]))
+        
         case let .moveSlider(frame, to):
             if let pressed {
                 append(.call(

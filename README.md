@@ -34,8 +34,12 @@ enact device <op> --udid <udid>        # direct device ops (tap, describe-ui, â€
 enact device stream-video --udid <udid> | ffplay -f h264 -
                                        # the screen live
 enact device session --udid <udid>     # one device op per stdin line (tap --point 200,400), a JSON line back
+enact device record-input --udid <udid>
+                                       # the input the device is given, a person's included, a JSON line each
 enact draft --udid <udid> --output <draft.yaml>
                                        # a session whose operations are also written as a scenario draft
+enact draft --udid <udid> --output <draft.yaml> --record-input
+                                       # the input the device is given, written as a scenario draft until Ctrl-C
 ```
 
 `<scenario>` is one of three spellings, told apart by shape, like a linker's
@@ -543,7 +547,7 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   only the app it talks to, which it is handed like any other input.
 - The verb table grows exactly as Digit grows. describe-ui (the means of every
   look), describe-screen (what a screen fraction is a fraction of), record-video
-  and record-log (the `record` and `record_log` spans), stream-video (watching is not a step of a scenario),
+  and record-log (the `record` and `record_log` spans), stream-video and record-input (watching is not a step of a scenario),
   session (a run already holds its device) and device lifecycle are not verbs. The device set is
   managed from `enact device`: `create`, `clone` and `delete` add and remove
   devices, and `boot`, `shutdown`, `reboot` and `erase` act on one.
@@ -608,6 +612,26 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
           value: { call: { procedure: wait_for, arguments: { where: { closure: { parameters: [ { one: Enact.Snapshot } ], result: { of: { ref: one.label }, is: "General" } } } } } }
         - value: { call: { procedure: tap, arguments: { on: { ref: generalButton } } } }
   ```
+- `enact draft --record-input` writes the input the device is given instead
+  of lines: a person's taps in the simulator's window as much as anything else's,
+  read from `enact device record-input` until Ctrl-C. A tap, a long press and a
+  swipe are written as the lines' are, a swipe by the direction it went
+  (`swipe`), as the device tells no more of where it ended. The software
+  keyboard's keys tapped in a row are one `type_text`, and the keys that only
+  change the keyboard are left out; a hardware key is a `press_key` and the home
+  button a `press_button`. The input is told after it was given, so a press is
+  named by the look taken after the input before it, once that look holds still,
+  and only where the application showed the same element there when it was
+  pressed; a look of a screen that moved on names nothing, and the press is a
+  `tap_point` as for what no look names. What a person meant, as a few swipes
+  and a tap that look for a row being a `scroll_to`, is the draft's reader's to
+  write.
+- `enact device record-input` is the UI test recorder of the Xcode Enact runs
+  with: each input is a JSON line with the names the device recognized it by
+  (`tap`, `long press`, `swipe up`, â€¦), where it began, the element
+  accessibility answered there (the innermost, as the text inside a button), and
+  the application's tree as it was. Keys, an application coming to the front and
+  a turn of the interface are lines of their own kinds. Simulators only.
 - Waiting is not a command. What counts as there, and for how long, is a
   scenario's, so a wait from the shell is a scenario on stdin:
 
