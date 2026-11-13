@@ -5,7 +5,7 @@ version = "1.0.0"
 
 [package]
 name = "enact"
-version = "0.1.0"
+version = "0.2.0"
 description = "Runs YAML scenarios on iOS simulators with no LLM in the loop, and drives the devices directly"
 requires = ["swift", "bash", "git", "xcodebuild"]
 
