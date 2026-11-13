@@ -164,7 +164,7 @@ enum Library {
                 arguments: [ { ref: on }, { ref: direction }, { ref: duration } ]
         
           drag_toward:
-            description: Drags inside a snapshot so an element in it moves toward the middle of the part the screen shows, along each way it is not already inside that part and is shorter than it, and lets go at rest. One stroke moves no further than a drag_on's, and a move shorter than a drag is read as is not made.
+            description: Drags inside a snapshot so an element in it moves toward the middle of the part the screen shows, along each way it is not already inside that part and is shorter than it, and lets go at rest. One stroke moves no further than a drag_on's, and a move under about 10 points, too short to read as a drag, is not made.
             access: public
             parameters:
               - on: { type: "Enact.Snapshot", hint: "what to drag in, such as a list, from a look" }
