@@ -615,8 +615,9 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
 - `enact draft --record-input` writes the input the device is given instead
   of lines: a person's taps in the simulator's window as much as anything else's,
   read from `enact device record-input` until Ctrl-C. A tap, a long press and a
-  swipe are written as the lines' are, a swipe by the direction it went
-  (`swipe`), as the device tells no more of where it ended. The software
+  swipe are written as the lines' are, a swipe from where it began, the way it
+  went, as far as a `swipe` reaches and no further than the screen's edge
+  (`swipe_between`), as the device tells no more of where it ended. The software
   keyboard's keys tapped in a row are one `type_text`, a delete taking back what
   was typed, and the keys that only change the keyboard are left out; a key that
   types no text, as Go, is a tap on it. A hardware key is a `press_key`, the home

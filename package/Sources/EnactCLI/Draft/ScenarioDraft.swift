@@ -107,12 +107,29 @@ struct ScenarioDraft {
                 ]
             ))
         
-        case let .swipe(_, direction, duration):
+        case let .swipe(point, direction, duration):
+            guard let screen = seen?.screen else {
+                statements.append(DraftStatement(
+                    comment: "no look read the screen to give the swipe as fractions of: swipe \(direction.rawValue) from \(spelled(point))"
+                ))
+                
+                return
+            }
+            
             if let pressed {
                 append(.call("wait_for", [DraftNode.Entry("where", pressed.catch.where)]), comments: comments(on: pressed))
             }
             
-            append(.call("swipe", [DraftNode.Entry("direction", .enumCase(direction)), DraftNode.Entry("duration", .number(duration))]))
+            let start = screen.fraction(of: point)
+            
+            append(.call(
+                "swipe_between",
+                [
+                    DraftNode.Entry("from", .fraction(start)),
+                    DraftNode.Entry("to", .fraction(direction.end(from: start))),
+                    DraftNode.Entry("duration", .number(duration))
+                ]
+            ))
         
         case let .moveSlider(frame, to):
             if let pressed {

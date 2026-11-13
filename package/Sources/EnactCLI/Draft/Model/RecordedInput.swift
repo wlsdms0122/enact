@@ -27,6 +27,9 @@ struct RecordedInput {
     // labels.
     private static let keyboardChanging = ["shift", "more", "numbers", "letters", "symbols", "next keyboard", "emoji", "dictate"]
     
+    // What the device names a swipe by, before the way it went.
+    private static let swipe = "swipe "
+    
     private var typed = ""
     
     // MARK: - Initializer
@@ -143,11 +146,12 @@ struct RecordedInput {
         case "long press":
             return .longPress(point, duration: duration)
         
-        case "swipe up", "swipe down", "swipe left", "swipe right":
-            return .swipe(point, direction: String(name.dropFirst("swipe ".count)), duration: max(duration, 0.1))
-        
         default:
-            return .comment("no verb does the gesture '\(name)' at \(point.x),\(point.y)")
+            guard name.hasPrefix(swipe), let direction = Direction(rawValue: String(name.dropFirst(swipe.count))) else {
+                return .comment("no verb does the gesture '\(name)' at \(point.x),\(point.y)")
+            }
+            
+            return .swipe(point, direction: direction, duration: max(duration, 0.1))
         }
     }
 }

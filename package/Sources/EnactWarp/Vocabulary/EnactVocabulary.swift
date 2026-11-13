@@ -26,7 +26,7 @@ package struct EnactVocabulary: Sendable {
     
     // The words a verb takes, each set an enum of its own.
     package static let role = WordSet<Role>("Enact.Role")
-    static let direction = WordSet<Direction>("Enact.Direction")
+    package static let direction = WordSet<Direction>("Enact.Direction")
     package static let button = WordSet<Button>("Enact.Button")
     package static let modifier = WordSet<Modifier>("Enact.Modifier")
     package static let biometricOutcome = WordSet<BiometricOutcome>("Enact.BiometricOutcome")

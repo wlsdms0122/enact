@@ -45,7 +45,7 @@ struct RecordedInputTests {
         
         #expect([tapped, held, swiped] == Array(repeating: Point(x: 10, y: 20), count: 3))
         #expect(duration == 1)
-        #expect(direction == "up")
+        #expect(direction == .up)
         #expect(swipeDuration == 0.1)
     }
     
