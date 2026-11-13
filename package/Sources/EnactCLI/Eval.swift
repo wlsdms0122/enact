@@ -46,7 +46,11 @@ struct Eval: AsyncParsableCommand {
                 store: SearchPathStore(roots: paths.map { path in URL(fileURLWithPath: path, isDirectory: true) })
             )
             
-            print(try await engine.answer(found, of: try Data(contentsOf: URL(fileURLWithPath: look))))
+            print(try await engine.answer(found, of: try written()))
+        } catch let error as DecodingError {
+            print("\(look) is no look a failure left: \(Self.reason(error))")
+            
+            throw ExitCode(1)
         } catch {
             print("\(error)")
             
@@ -55,4 +59,22 @@ struct Eval: AsyncParsableCommand {
     }
     
     // MARK: - Private
+    // What a look's reading failed at, and where in the file.
+    private static func reason(_ error: DecodingError) -> String {
+        let context: DecodingError.Context = switch error {
+        case let .typeMismatch(_, context), let .valueNotFound(_, context), let .keyNotFound(_, context), let .dataCorrupted(context): context
+        @unknown default: DecodingError.Context(codingPath: [], debugDescription: "\(error)")
+        }
+        let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+        
+        return path.isEmpty ? context.debugDescription : "\(context.debugDescription) (at \(path))"
+    }
+    
+    private func written() throws -> Data {
+        do {
+            return try Data(contentsOf: URL(fileURLWithPath: look))
+        } catch {
+            throw ValidationError("cannot read the look \(look): \(error.localizedDescription)")
+        }
+    }
 }
