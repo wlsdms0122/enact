@@ -20,7 +20,7 @@ extension Report {
         
         if let stop {
             lines.append(
-                "  stop-at: \(stop.at), \(stop.reached ? "reached" : "never reached")"
+                "  \(stop.before ? "stop-before" : "stop-at"): \(stop.at), \(stop.reached ? "reached" : "never reached")"
             )
         }
         

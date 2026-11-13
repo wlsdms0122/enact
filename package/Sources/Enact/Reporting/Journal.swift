@@ -79,6 +79,7 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
     private let lock = NSLock()
     private var evidence: Evidence?
     private var stopAt: StatementAddress?
+    private var stopsBefore = false
     private var onStop: (@Sendable () -> Void)?
     private var started = Date()
     private var stopped = false
@@ -99,15 +100,24 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
     
     // MARK: - Lifecycle
     public func statementStarted(at trace: Trace) async {
-        lock.withLock {
+        let stop: (@Sendable () -> Void)? = lock.withLock {
             settle(under: trace)
             name(trace)
             
-            guard isScenarios(trace) else { return }
+            guard isScenarios(trace) else { return nil }
             
             let parent = open.last
             let id = trace.hops.last.map(Self.label) ?? ""
             let address = (parent?.address ?? StatementAddress()).appending(id)
+            
+            // A stop before a statement leaves it out of the record: what the
+            // run goes on to do of it touches no device.
+            if stopsBefore, address == stopAt, !stopped {
+                stopped = true
+                
+                return onStop
+            }
+            
             let report = StepReport(id: id, path: address.description)
             
             open.append(
@@ -120,7 +130,11 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
                 )
             )
             emit(Event(event: "step_begin", path: report.path))
+            
+            return nil
         }
+        
+        stop?()
     }
     
     public func statementCompleted(at trace: Trace, result: Value) async {
@@ -134,7 +148,7 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
             
             file(finished)
             
-            guard address == stopAt, !stopped else { return nil }
+            guard !stopsBefore, address == stopAt, !stopped else { return nil }
             
             stopped = true
             
@@ -201,9 +215,15 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
     }
     
     // MARK: - Public
-    func bound(at address: StatementAddress?, evidence: Evidence?, _ stop: @escaping @Sendable () -> Void) {
+    func bound(
+        at address: StatementAddress?,
+        before: Bool,
+        evidence: Evidence?,
+        _ stop: @escaping @Sendable () -> Void
+    ) {
         lock.withLock {
             self.stopAt = address
+            self.stopsBefore = before
             self.evidence = evidence
             self.onStop = stop
         }
@@ -291,15 +311,15 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
         return true
     }
     
-    // A statement run under a scenario statement names it by the procedure
-    // that statement called.
+    // A statement run under a scenario statement names it by the qualified
+    // name of the procedure that statement called.
     private func name(_ trace: Trace) {
         guard let index = open.lastIndex(where: { candidate in Self.holds(candidate.trace, trace) }),
             open[index].report.kind == nil,
             case let .procedure(called)? = trace.hops.dropFirst(open[index].trace.hops.count).first
         else { return }
         
-        open[index].report.kind = called.split(separator: ".").last.map(String.init) ?? called
+        open[index].report.kind = called
     }
     
     // The round a statement ran in under its parent: a loop's round or the

@@ -55,6 +55,12 @@ struct Run: AsyncParsableCommand {
     )
     var stopAt: String?
     
+    @Option(
+        name: .customLong("stop-before"),
+        help: "The first statement not to carry out, by its address; the run ends before it the first time it is reached."
+    )
+    var stopBefore: String?
+    
     @Flag(
         name: .customLong("stream"),
         help: "Emit journal events as NDJSON on stderr while the run goes."
@@ -77,8 +83,15 @@ struct Run: AsyncParsableCommand {
     
     // MARK: - Initializer
     // MARK: - Public
+    func validate() throws {
+        guard stopAt == nil || stopBefore == nil else {
+            throw ArgumentParser.ValidationError("--stop-at and --stop-before: give one stop")
+        }
+    }
+    
     func run() async throws {
         let inputs = try Self.read(inputs)
+        let stop = stopAt.map(StopPoint.after) ?? stopBefore.map(StopPoint.before)
         let signals = SignalWaiter([SIGINT, SIGTERM])
         defer { signals.disarm() }
         
@@ -111,14 +124,14 @@ struct Run: AsyncParsableCommand {
         
         let entry = try scenario.entry()
         let engine = try Engine()
-        let work = Task { [entry, udid, outputDirectory, stopAt, report] in
+        let work = Task { [entry, udid, outputDirectory, stop, report] in
             await engine.run(
                 entry.name,
                 store: entry.store,
                 udid: udid,
                 inputs: inputs,
                 outputDirectory: URL(fileURLWithPath: outputDirectory, isDirectory: true),
-                stopAt: stopAt,
+                stop: stop,
                 events: events,
                 record: report
             )

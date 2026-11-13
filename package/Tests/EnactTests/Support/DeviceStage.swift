@@ -38,7 +38,7 @@ struct DeviceStage {
     func report(
         _ text: String,
         arguments: [Warp.Name: Warp.Value] = [:],
-        stopAt: String? = nil,
+        stop: StopPoint? = nil,
         lock: DeviceLock? = nil,
         sink: Journal.Sink? = nil
     ) async throws -> Report {
@@ -56,7 +56,7 @@ struct DeviceStage {
             device: environment.device,
             lock: lock ?? DeviceLock(directory: directory.appendingPathComponent("run-lock")),
             outputDirectory: environment.outputDirectory,
-            stopAt: stopAt,
+            stop: stop,
             sink: sink
         )
     }

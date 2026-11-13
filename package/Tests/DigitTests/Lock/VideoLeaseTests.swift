@@ -43,6 +43,24 @@ struct VideoLeaseTests {
         // MARK: - Private
     }
     
+    private final class CountingBackend: DeviceBackend, @unchecked Sendable {
+        // MARK: - Property
+        let info = DeviceInfo(udid: "udid-video", name: "stub", osVersion: "iOS 26.0", state: .booted)
+        
+        var dispatchTable: DispatchTable {
+            DispatchTable([
+                .perform({ (_: RecordVideoOperator) in self.starts += 1; return Recording {} }),
+                .perform({ (_: RecordLogOperator) in self.starts += 1; return Recording {} })
+            ])
+        }
+        
+        private(set) var starts = 0
+        
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+    }
+    
     private final class DeafBackend: DeviceBackend {
         // MARK: - Property
         let info = DeviceInfo(udid: "udid-deaf", name: "stub", osVersion: "iOS 26.0", state: .booted)
@@ -280,6 +298,37 @@ struct VideoLeaseTests {
                 
                 return
             }
+        }
+    }
+    
+    @Test("a cancelled task starts no video and no log, and runs no work under them")
+    func aCancelledTaskStartsNoRecording() async throws {
+        try await cleaned {
+            // Given
+            let backend = CountingBackend()
+            let device = Device(backend: backend, lock: lock)
+            
+            // When
+            let video = await Task {
+                withUnsafeCurrentTask { task in task?.cancel() }
+                
+                return try await device.recordVideo(to: "/tmp/one.mp4") { Issue.record("the work ran") }
+            }.result
+            let log = await Task {
+                withUnsafeCurrentTask { task in task?.cancel() }
+                
+                return try await device.recordLog(to: "/tmp/one.log", matching: nil) { Issue.record("the work ran") }
+            }.result
+            
+            // Then
+            for result in [video.map { _ in () }, log.map { _ in () }] {
+                guard case let .failure(error) = result, case .interrupted? = error as? DigitError else {
+                    Issue.record("expected interrupted, got \(result)")
+                    continue
+                }
+            }
+            #expect(backend.starts == 0)
+            _ = try await device.recordVideo(to: "/tmp/two.mp4") {}
         }
     }
     

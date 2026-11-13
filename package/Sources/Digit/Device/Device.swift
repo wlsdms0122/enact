@@ -58,6 +58,10 @@ public struct Device: @unchecked Sendable {
             throw CapabilityError(operation: .recordVideo, target: backend.info)
         }
         
+        // The lease marks the video open before the recorder starts, so a
+        // cancelled task takes none.
+        guard !Task.isCancelled else { throw DigitError.interrupted }
+        
         do {
             return try await VideoLease(lock: lock).recording(on: backend.info.udid, to: path) { lease in
                 // A video is closed once its recorder stops, and stays open where it
