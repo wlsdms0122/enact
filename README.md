@@ -632,7 +632,8 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   look after the one before it began leaves a comment where that wait goes, as
   the look may show what the input itself led to. An input is told about half a
   second after it was given, and one not yet told when the recording is stopped
-  is not written. What a person meant, as a few swipes
+  is not written. A recording the device ends, as one shut down does, fails the
+  command with what was given so far written. What a person meant, as a few swipes
   and a tap that look for a row being a `scroll_to`, is the draft's reader's to
   write.
 - `enact device record-input` is the UI test recorder of the Xcode Enact runs
@@ -641,7 +642,8 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   accessibility answered there (the innermost, as the text inside a button), and
   the application's tree as it was. A button, a hardware key (named as
   `press-key` takes it), an application coming to the front and a turn of the
-  interface are lines of their own kinds. Simulators only.
+  interface are lines of their own kinds. It runs until interrupted, and fails
+  once the device ends the recording, as one shut down does. Simulators only.
 - Waiting is not a command. What counts as there, and for how long, is a
   scenario's, so a wait from the shell is a scenario on stdin:
 
