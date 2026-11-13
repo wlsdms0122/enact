@@ -45,13 +45,60 @@ struct ScenarioRunnerTests {
         let sut = try DeviceStage()
         
         // When
-        let report = try await sut.report(threeSteps, stopAt: "two")
+        let report = try await sut.report(threeSteps, stop: .after("two"))
         
         // Then
         #expect(report.outcome == .completed)
         #expect(report.stop?.reached == true)
         #expect(report.failures.isEmpty)
         #expect(sut.backend.performed.count == 2)
+    }
+    
+    @Test("--stop-before ends the run before the statement it names, which stays out of the record")
+    func aStopBeforeEndsTheRunBeforeIt() async throws {
+        // Given
+        let sut = try DeviceStage()
+        
+        // When
+        let report = try await sut.report(threeSteps, stop: .before("two"))
+        
+        // Then
+        #expect(report.outcome == .completed)
+        #expect(report.stop?.reached == true)
+        #expect(report.stop?.before == true)
+        #expect(report.failures.isEmpty)
+        #expect(report.steps.map(\.path) == ["one"])
+        #expect(sut.backend.performed.count == 1)
+    }
+    
+    @Test("a stop before a statement that calls a procedure runs nothing of the procedure")
+    func aStopBeforeACallRunsNothingOfIt() async throws {
+        // Given
+        let sut = try DeviceStage()
+        let text = """
+        uses: [Enact]
+        procedures:
+          main:
+            access: public
+            failing: anything
+            body:
+              - let: pay
+                value: { call: { procedure: send } }
+          send:
+            failing: anything
+            body:
+              - let: amount
+                value: { call: { procedure: type_text, arguments: { text: a } } }
+        """
+        
+        // When
+        let report = try await sut.report(text, stop: .before("pay"))
+        
+        // Then
+        #expect(report.outcome == .completed)
+        #expect(report.stop?.reached == true)
+        #expect(report.steps.isEmpty)
+        #expect(sut.backend.performed.isEmpty)
     }
     
     @Test("a stop in a branch nobody takes never arrives, and the run goes to its end")
@@ -72,7 +119,7 @@ struct ScenarioRunnerTests {
         """)
         
         // When
-        let report = try await sut.report(text, stopAt: "[0]/hidden")
+        let report = try await sut.report(text, stop: .after("[0]/hidden"))
         
         // Then
         #expect(report.outcome == .completed)
@@ -89,7 +136,7 @@ struct ScenarioRunnerTests {
         let sut = try DeviceStage()
         
         // When
-        let report = try await sut.report(threeSteps, stopAt: address)
+        let report = try await sut.report(threeSteps, stop: .after(address))
         
         // Then
         #expect(report.outcome == .refused)
@@ -116,7 +163,7 @@ struct ScenarioRunnerTests {
         """)
         
         // When
-        let report = try await sut.report(text, stopAt: "inner")
+        let report = try await sut.report(text, stop: .after("inner"))
         
         // Then
         #expect(report.refused == .stopUnknown)
@@ -187,7 +234,66 @@ struct ScenarioRunnerTests {
         
         #expect(report.recordings.map { path in URL(fileURLWithPath: path).lastPathComponent } == ["walk.mp4"])
         #expect(evidence.screenshot.map { path in URL(fileURLWithPath: path).lastPathComponent } == "failed-wait.png")
-        #expect(evidence.tree.map { path in URL(fileURLWithPath: path).lastPathComponent } == "failed-wait.json")
+        #expect(evidence.look.map { path in URL(fileURLWithPath: path).lastPathComponent } == "failed-wait.json")
+    }
+    
+    @Test("a failed statement's evidence sums up the screen: its headings, buttons and fields, by label or else value")
+    func evidenceSumsUpTheScreen() async throws {
+        // Given
+        let sut = try DeviceStage(elements: [
+            Element(label: "Transfer", role: .heading, frame: Element.Frame(x: 0, y: 0, width: 400, height: 40)),
+            Element(label: "Amount", value: "0", role: .field, frame: Element.Frame(x: 0, y: 60, width: 400, height: 40)),
+            Element(label: "", value: "Memo", role: .field, frame: Element.Frame(x: 0, y: 110, width: 400, height: 40)),
+            Element(label: "Send\nnow", role: .button, frame: Element.Frame(x: 0, y: 700, width: 400, height: 40)),
+            Element(label: "Balance", role: .text, frame: Element.Frame(x: 0, y: 160, width: 400, height: 20))
+        ])
+        let text = scenarioFile("""
+        failing: anything
+        body:
+          - let: wait
+            value: { call: { procedure: sleep, arguments: { sec: -1, because: never } } }
+        """)
+        
+        // When
+        let report = try await sut.report(text)
+        
+        // Then
+        let summary = try #require(report.steps.last?.evidence?.summary)
+        
+        #expect(summary.headings == ["Transfer"])
+        #expect(summary.buttons == ["Send\nnow"])
+        #expect(summary.fields == ["Amount", "Memo"])
+        #expect(report.plain.contains("screen  heading 'Transfer' · button 'Send now' · field 'Amount', 'Memo'"), "\(report.plain)")
+    }
+    
+    @Test("a failure a try caught leaves no evidence, unless the run keeps it", arguments: [false, true])
+    func aCaughtFailureLeavesNoEvidence(_ keeps: Bool) async throws {
+        // Given
+        let sut = try DeviceStage()
+        let text = scenarioFile("""
+        failing: anything
+        body:
+          - let: tried
+            value:
+              try:
+                body:
+                  - let: wait
+                    value: { call: { procedure: sleep, arguments: { sec: -1, because: never } } }
+                catch:
+                  - let: noted
+                    value: 1
+        """)
+        
+        // When
+        let report = try await sut.report(text, keepsCaughtEvidence: keeps)
+        
+        // Then
+        let tried = try #require(report.steps.first)
+        let wait = try #require(tried.steps?.first { step in step.id == "wait" })
+        
+        #expect(tried.rescued == true)
+        #expect(wait.status == .failed)
+        #expect((wait.evidence != nil) == keeps)
     }
     
     @Test("a video the run lost is reported lost, with why, and not listed with the videos it landed")

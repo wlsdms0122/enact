@@ -35,6 +35,9 @@ public struct Scenario: Sendable {
     
     let image: Image
     
+    // Every procedure the scenarios declare, by its qualified name.
+    let procedures: [Warp.Name: Procedure]
+    
     // MARK: - Initializer
     init(name: String, loader: ScenarioLoader, builder: ScenarioBuilder) async throws {
         let documents = try loader.load(name)
@@ -61,6 +64,9 @@ public struct Scenario: Sendable {
             return Calls(scenario: found, calls: calls.sorted(), verbs: verbs.sorted())
         }
         self.image = image
+        self.procedures = documents.values.reduce(into: [:]) { procedures, document in
+            procedures.merge(document.module.procedures) { declared, _ in declared }
+        }
         self.entry = ScenarioEntry(named: name, among: documents, vocabulary: loader.vocabulary)
     }
     

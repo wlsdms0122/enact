@@ -8,11 +8,15 @@
 import Foundation
 import Testing
 import Warp
+@testable import Digit
 @testable import EnactWarp
 
 @Suite("Input verbs press, type and stroke where their arguments say")
 struct InputActionTests {
     // MARK: - Property
+    // What answers where `snapshotLiteral()` stands.
+    private let save = Element(label: "Save", role: .button, frame: Element.Frame(x: 100, y: 200, width: 80, height: 40))
+    
     // MARK: - Initializer
     // MARK: - Test
     @Test("each input verb hands the device the operation its arguments say", arguments: [
@@ -57,6 +61,11 @@ struct InputActionTests {
             "SwipeOperator(stroke: Digit.Stroke(start: Digit.Point(x: 200.0, y: 780.0), end: Digit.Point(x: 200.0, y: 720.0), duration: 0.2))"
         ),
         (
+            "drag_on",
+            "{ on: \(snapshotLiteral(frame: (0, 700, 400, 200))), direction: { case: up } }",
+            "DragOperator(stroke: Digit.Stroke(start: Digit.Point(x: 200.0, y: 780.0), end: Digit.Point(x: 200.0, y: 720.0), duration: 0.2))"
+        ),
+        (
             "drag",
             "{ from: { struct: { x: 0, y: 0 } }, to: { struct: { x: 1, y: 1 } }, duration: 1 }",
             "DragOperator(stroke: Digit.Stroke(start: Digit.Point(x: 0.0, y: 0.0), end: Digit.Point(x: 400.0, y: 800.0), duration: 1.0))"
@@ -65,7 +74,7 @@ struct InputActionTests {
     ])
     func eachVerbHandsTheDeviceItsOperation(_ procedure: String, _ arguments: String?, _ expected: String) async throws {
         // Given
-        let sut = try DeviceStage()
+        let sut = try DeviceStage(elements: [save])
         
         // When
         let result = try await sut.run(verbCall(procedure, arguments))
@@ -131,7 +140,8 @@ struct InputActionTests {
         ("tap", "{ on: \(snapshotLiteral(frame: (100, 900, 80, 40))) }", "off the screen"),
         ("tap", "{ on: \(snapshotLiteral(frame: (380, 200, 80, 40))), at: { struct: { x: 0.75, y: 0.5 } } }", "off the screen"),
         ("long_press", "{ on: \(snapshotLiteral(frame: (100, -100, 80, 40))) }", "off the screen"),
-        ("swipe_on", "{ on: \(snapshotLiteral(frame: (0, 900, 400, 200))), direction: { case: up } }", "off the screen")
+        ("swipe_on", "{ on: \(snapshotLiteral(frame: (0, 900, 400, 200))), direction: { case: up } }", "off the screen"),
+        ("drag_on", "{ on: \(snapshotLiteral(frame: (0, 900, 400, 200))), direction: { case: up } }", "off the screen")
     ])
     func anUnfitPressIsRefused(_ procedure: String, _ arguments: String, _ said: String) async throws {
         // Given
@@ -148,6 +158,47 @@ struct InputActionTests {
         #expect(failure.kind == .referenceUnfit)
         #expect(failure.detail.contains(said), "\(failure.detail)")
         #expect(sut.backend.performed.isEmpty)
+    }
+    
+    @Test("a press is refused where an element other than its snapshot, or none, answers, and the device is not touched", arguments: [
+        ("tap", [Element(label: "Pay", role: .button, frame: Element.Frame(x: 100, y: 210, width: 80, height: 40))], "'Pay' answers there"),
+        ("tap", [Element(label: "Sheet", role: .container, frame: Element.Frame(x: 90, y: 190, width: 100, height: 60))], "'Sheet' answers there"),
+        ("long_press", [], "nothing answers there")
+    ])
+    func aPressWhereAnotherElementAnswersIsRefused(_ procedure: String, _ elements: [Element], _ said: String) async throws {
+        // Given
+        let sut = try DeviceStage(elements: elements)
+        
+        // When
+        let refusal = await #expect(throws: StepFailure.self) {
+            _ = try await sut.run(verbCall(procedure, "{ on: \(snapshotLiteral()) }"))
+        }
+        
+        // Then
+        let failure = try #require(refusal)
+        
+        #expect(failure.kind == .referenceUnfit)
+        #expect(failure.detail.contains(said), "\(failure.detail)")
+        #expect(sut.backend.performed.isEmpty)
+    }
+    
+    @Test("a press lands where an element inside its snapshot answers")
+    func aPressLandsOnWhatItsSnapshotHolds() async throws {
+        // Given
+        let sut = try DeviceStage(elements: [
+            Element(
+                label: "Save",
+                role: .button,
+                frame: Element.Frame(x: 100, y: 200, width: 80, height: 40),
+                children: [Element(label: "Save", role: .text, frame: Element.Frame(x: 120, y: 210, width: 40, height: 20))]
+            )
+        ])
+        
+        // When
+        _ = try await sut.run(verbCall("tap", "{ on: \(snapshotLiteral()) }"))
+        
+        // Then
+        #expect(sut.backend.performed.map(String.init(describing:)) == ["TapOperator(point: Digit.Point(x: 140.0, y: 220.0))"])
     }
     
     @Test("a slider is moved along its rail from where its value says the thumb is", arguments: [

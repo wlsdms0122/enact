@@ -19,14 +19,14 @@ import WarpYAML
 package struct EnactVocabulary: Sendable {
     // MARK: - Property
     // The structs a look returns and a verb takes.
-    static let screenType: Warp.Name = "Enact.Screen"
+    package static let screenType: Warp.Name = "Enact.Screen"
     static let snapshotType: Warp.Name = "Enact.Snapshot"
     static let frameType: Warp.Name = "Enact.Frame"
     static let pointType: Warp.Name = "Enact.Point"
     
     // The words a verb takes, each set an enum of its own.
     package static let role = WordSet<Role>("Enact.Role")
-    static let direction = WordSet<Direction>("Enact.Direction")
+    package static let direction = WordSet<Direction>("Enact.Direction")
     package static let button = WordSet<Button>("Enact.Button")
     package static let modifier = WordSet<Modifier>("Enact.Modifier")
     package static let biometricOutcome = WordSet<BiometricOutcome>("Enact.BiometricOutcome")
@@ -75,6 +75,8 @@ package struct EnactVocabulary: Sendable {
         "swipe_between": SwipeBetweenAction.self,
         "swipe_on": SwipeOnAction.self,
         "drag": DragAction.self,
+        "drag_on": DragOnAction.self,
+        "drag_toward": DragTowardAction.self,
         "respond_biometric": RespondBiometricAction.self,
         "launch_app": LaunchAppAction.self,
         "terminate_app": TerminateAppAction.self,
@@ -120,6 +122,7 @@ package struct EnactVocabulary: Sendable {
     private static let controls: [String: Native] = [
         "within": .query(WithinQuery()),
         "in_area": .query(InAreaQuery()),
+        "fully_visible": .query(FullyVisibleQuery()),
         "nearest": .query(NearestQuery()),
         "repeat": .effect(RepeatAction()),
         "sleep": .effect(SleepAction())

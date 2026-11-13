@@ -14,13 +14,13 @@ struct EnactCLITests {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Test
-    @Test("run, draft, check, graph and device are the commands there are")
+    @Test("run, eval, draft, check, graph and device are the commands there are")
     func theRootsCommands() {
         // When
         let sut = Set(EnactCLI.configuration.subcommands.compactMap { command in command.configuration.commandName })
         
         // Then
-        #expect(sut == ["run", "draft", "check", "graph", "device"])
+        #expect(sut == ["run", "eval", "draft", "check", "graph", "device"])
     }
     
     // MARK: - Private

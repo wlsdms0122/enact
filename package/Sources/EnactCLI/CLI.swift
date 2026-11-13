@@ -15,7 +15,7 @@ struct EnactCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "enact",
         abstract: "Carry out scenarios on a device, and the device operations they are made of.",
-        subcommands: [Run.self, Draft.self, Check.self, Graph.self, DeviceGroup.self]
+        subcommands: [Run.self, Eval.self, Draft.self, Check.self, Graph.self, DeviceGroup.self]
     )
     
     // MARK: - Initializer

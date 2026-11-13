@@ -13,7 +13,19 @@ import Warp
 // slider carries its rail, the frame a thumb travels along. The index path is
 // where the element sits in the tree the look read: its place among its
 // parent's children, after its parent's own path.
-package struct Snapshot: Sendable, Equatable {
+package struct Snapshot: Sendable, Equatable, Codable {
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case label
+        case value
+        case role
+        case enabled
+        case actions
+        case frame
+        case track
+        case indexPath = "index_path"
+    }
+    
     // MARK: - Property
     package let id: String?
     package let label: String?

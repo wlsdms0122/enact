@@ -20,7 +20,7 @@ extension Report {
         
         if let stop {
             lines.append(
-                "  stop-at: \(stop.at), \(stop.reached ? "reached" : "never reached")"
+                "  \(stop.before ? "stop-before" : "stop-at"): \(stop.at), \(stop.reached ? "reached" : "never reached")"
             )
         }
         
@@ -87,7 +87,9 @@ extension StepReport {
         if rescued == true { lines.append("\(pad)    rescued") }
         
         if let evidence {
-            for (name, path) in [("screenshot", evidence.screenshot), ("tree", evidence.tree)] {
+            if let summary = evidence.summary { lines.append("\(pad)    screen  \(summary.line)") }
+            
+            for (name, path) in [("screenshot", evidence.screenshot), ("look", evidence.look)] {
                 if let path { lines.append("\(pad)    \(name)  \(path)") }
             }
         }

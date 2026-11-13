@@ -87,13 +87,13 @@ struct CompositionTests {
         #expect(try #require(refusal).kind == .timedOut)
     }
     
-    @Test("scroll_to that sees what it scrolls to returns it without swiping")
+    @Test("scroll_to that sees what it scrolls to whole returns it without dragging")
     func scrollToReturnsWhatIsShown() async throws {
         // Given
-        let sut = try DeviceStage(elements: [
+        let sut = try DeviceStage(elements: [list([
             Element(label: "Save", role: .button, frame: Element.Frame(x: 110, y: 300, width: 80, height: 40))
-        ])
-        let arguments = "{ where: \(labeled("Save")), on: \(snapshotLiteral(role: "container", frame: (0, 100, 400, 600))), direction: { case: up }, debounce: 0.1 }"
+        ])])
+        let arguments = "{ where: \(labeled("Save")), on: \(snapshotLiteral(role: "container", frame: (0, 100, 400, 600), indexPath: [0])), direction: { case: up }, debounce: 0.1 }"
         
         // When
         let result = try await sut.run(verbCall("scroll_to", arguments, returns: "Enact.Snapshot"))
@@ -106,16 +106,17 @@ struct CompositionTests {
         }
         
         #expect(held["label"] == .string("Save"))
-        #expect(!sut.backend.performed.contains { operation in operation is SwipeOperator })
+        #expect(!sut.backend.performed.contains { operation in operation is DragOperator })
     }
     
-    @Test("scroll_to swipes inside the snapshot each round it does not see what it scrolls to, until timed_out")
-    func scrollToSwipesUntilTimedOut() async throws {
+    @Test("scroll_to drags inside the snapshot each round it does not see what it scrolls to whole, until timed_out", arguments: [
+        Element(label: "Cancel", role: .button, frame: Element.Frame(x: 10, y: 300, width: 80, height: 40)),
+        Element(label: "Save", role: .button, frame: Element.Frame(x: 10, y: 680, width: 80, height: 40))
+    ])
+    func scrollToDragsUntilTimedOut(_ shown: Element) async throws {
         // Given
-        let sut = try DeviceStage(elements: [
-            Element(label: "Cancel", role: .button, frame: Element.Frame(x: 10, y: 300, width: 80, height: 40))
-        ])
-        let arguments = "{ where: \(labeled("Save")), on: \(snapshotLiteral(role: "container", frame: (0, 100, 400, 600))), direction: { case: up }, timeout: 0.5, debounce: 0.1 }"
+        let sut = try DeviceStage(elements: [list([shown])])
+        let arguments = "{ where: \(labeled("Save")), on: \(snapshotLiteral(role: "container", frame: (0, 100, 400, 600), indexPath: [0])), direction: { case: up }, timeout: 0.5, debounce: 0.1 }"
         
         // When
         let refusal = await #expect(throws: StepFailure.self) {
@@ -124,7 +125,49 @@ struct CompositionTests {
         
         // Then
         #expect(try #require(refusal).kind == .timedOut)
-        #expect(sut.backend.performed.contains { operation in operation is SwipeOperator })
+        #expect(sut.backend.performed.contains { operation in operation is DragOperator })
+    }
+    
+    @Test("scroll_to drags what it scrolls to toward the middle once the tree holds it, cut or off the screen", arguments: [
+        (Element.Frame(x: 10, y: 600, width: 80, height: 300), "start: Digit.Point(x: 200.0, y: 575.0), end: Digit.Point(x: 200.0, y: 225.0)"),
+        (Element.Frame(x: 10, y: 50, width: 80, height: 300), "start: Digit.Point(x: 200.0, y: 300.0), end: Digit.Point(x: 200.0, y: 500.0)"),
+        (Element.Frame(x: 10, y: 2000, width: 80, height: 40), "start: Digit.Point(x: 200.0, y: 580.0), end: Digit.Point(x: 200.0, y: 220.0)")
+    ])
+    func scrollToDragsWhatItHoldsTowardTheMiddle(_ frame: Element.Frame, _ stroke: String) async throws {
+        // Given
+        let sut = try DeviceStage(elements: [list([Element(label: "Save", role: .button, frame: frame)])])
+        let arguments = "{ where: \(labeled("Save")), on: \(snapshotLiteral(role: "container", frame: (0, 100, 400, 600), indexPath: [0])), direction: { case: down }, timeout: 0.3, debounce: 0.1 }"
+        
+        // When
+        let refusal = await #expect(throws: StepFailure.self) {
+            _ = try await sut.run(verbCall("scroll_to", arguments, returns: "Enact.Snapshot"))
+        }
+        
+        // Then
+        #expect(try #require(refusal).kind == .timedOut)
+        #expect(sut.backend.performed.map(String.init(describing:)).first == "DragOperator(stroke: Digit.Stroke(\(stroke), duration: 0.2))")
+    }
+    
+    @Test("scroll_to drags in its direction past a match outside what it drags in")
+    func scrollToPassesAMatchOutsideIt() async throws {
+        // Given
+        let sut = try DeviceStage(elements: [
+            list([]),
+            Element(label: "Save", role: .button, frame: Element.Frame(x: 300, y: 40, width: 80, height: 40))
+        ])
+        let arguments = "{ where: \(labeled("Save")), on: \(snapshotLiteral(role: "container", frame: (0, 100, 400, 600), indexPath: [0])), direction: { case: up }, timeout: 0.3, debounce: 0.1 }"
+        
+        // When
+        let refusal = await #expect(throws: StepFailure.self) {
+            _ = try await sut.run(verbCall("scroll_to", arguments, returns: "Enact.Snapshot"))
+        }
+        
+        // Then
+        #expect(try #require(refusal).kind == .timedOut)
+        #expect(
+            sut.backend.performed.map(String.init(describing:)).first
+                == "DragOperator(stroke: Digit.Stroke(start: Digit.Point(x: 200.0, y: 580.0), end: Digit.Point(x: 200.0, y: 220.0), duration: 0.2))"
+        )
     }
     
     @Test(
@@ -179,6 +222,11 @@ struct CompositionTests {
     }
     
     // MARK: - Private
+    // The list a scroll goes in, holding the elements given.
+    private func list(_ elements: [Element]) -> Element {
+        Element(role: .container, frame: Element.Frame(x: 0, y: 100, width: 400, height: 600), children: elements)
+    }
+    
     private func labeled(_ label: String) -> String {
         "{ closure: { parameters: [ one: Enact.Snapshot ], result: { of: { ref: one.label }, is: \(label) } } }"
     }

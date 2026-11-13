@@ -22,8 +22,16 @@ struct DispatchTable {
     }
     
     // MARK: - Public
+    // Every operation a device starts passes here, and a cancelled task
+    // starts none.
     func body<O: Operator>(for _: O.Type) -> ((O) async throws -> O.Result)? {
-        byType[ObjectIdentifier(O.self)] as? (O) async throws -> O.Result
+        guard let body = byType[ObjectIdentifier(O.self)] as? (O) async throws -> O.Result else { return nil }
+        
+        return { operation in
+            try Task.checkCancellation()
+            
+            return try await body(operation)
+        }
     }
     
     // MARK: - Private

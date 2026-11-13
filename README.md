@@ -25,14 +25,21 @@ enact run … --verbose                  # every statement, not only the failure
 enact run … --report                   # + the whole record as report.json in --out-dir
 enact run … --stream                   # + journal events as NDJSON on stderr, live
 enact run … --stop-at <address>        # carry out up to a statement and end there, e.g. login/name
+enact run … --stop-before <address>    # end before a statement, carrying out nothing of it
+enact run … --keep-caught-evidence     # keep the evidence of a failure a try caught, which goes by default
+enact eval <Module.query> --path <dir> --look <failed.json>   # a query of a screen against a look a failure left, no device
 enact check <scenario>                 # read and build only, no device: the same code as a run's first moment
 enact graph <scenario>                 # what it calls, and what it can ask a device to do
 enact device <op> --udid <udid>        # direct device ops (tap, describe-ui, …)
 enact device stream-video --udid <udid> | ffplay -f h264 -
                                        # the screen live
 enact device session --udid <udid>     # one device op per stdin line (tap --point 200,400), a JSON line back
+enact device record-input --udid <udid>
+                                       # the input the device is given, a person's included, a JSON line each
 enact draft --udid <udid> --output <draft.yaml>
                                        # a session whose operations are also written as a scenario draft
+enact draft --udid <udid> --output <draft.yaml> --record-input
+                                       # the input the device is given, written as a scenario draft until Ctrl-C
 ```
 
 `<scenario>` is one of three spellings, told apart by shape, like a linker's
@@ -220,7 +227,7 @@ before the elements inside it.
 (about a second on an iOS 26 simulator, 0.7 to 1.4s measured, more for a deeper
 tree); asking it many questions costs nothing more, and two looks are two acts
 at two moments. The questions are Warp's own collection operators
-(`filter`, `first`, `count`, …) and three procedures of the library, each pure:
+(`filter`, `first`, `count`, …) and four procedures of the library, each pure:
 
 - `within(elements, in)` keeps what sits inside a container of the same look, at
   any depth, as the tree the look read says.
@@ -228,6 +235,8 @@ at two moments. The questions are Warp's own collection operators
   given as fractions of its width and height.
 - `nearest(elements, to, screen)` orders by the distance from the middle of each
   to a point of the screen, the nearest first.
+- `fully_visible(elements, in, screen)` keeps what a container shows whole,
+  inside the part of it the screen shows.
 
 What another process draws inside the app, as a web view's content, is not in
 the app's tree and answers only a press at a point. A look finds it by pressing
@@ -282,7 +291,8 @@ Warp failure type, so a `try` takes it and the catch reads the kind:
 ```
 
 - The record still says the statement **failed**, because it did. What a caught
-  failure gives up is its claim on `failures`, the list a verdict is read from.
+  failure gives up is its claim on `failures`, the list a verdict is read from,
+  and its evidence, unless the run keeps it.
 - An interruption (Ctrl-C, a stop) is a cancellation, not a failure, and no
   catch takes it.
 
@@ -303,7 +313,8 @@ native, so it says nothing a scenario could not say itself.
 | `press_key` | `key` (a character or a key's name), `modifiers = []` |
 | `press_button` | `button` |
 | `swipe` | `direction`, `duration = 0.2` |
-| `swipe_on` | `on: Enact.Snapshot`, `direction`, `duration = 0.2` |
+| `swipe_on`, `drag_on` | `on: Enact.Snapshot`, `direction`, `duration = 0.2` |
+| `drag_toward` | `on: Enact.Snapshot`, `element: Enact.Snapshot`: one drag moving the element toward the middle of what `on` shows, as far as a `drag_on` |
 | `swipe_between`, `drag` | `from: Enact.Point`, `to: Enact.Point`, `duration = 0.2` |
 | `respond_biometric` | `outcome = "match"` |
 | `launch_app` | `bundle_id`, `args = []`, `locale?`, `language?`; an app already running is launched anew. It returns once the process starts, and until the app draws, a look reads the app that was in front or none of this one; `app_state` tells whether it is in front yet |
@@ -331,7 +342,7 @@ native, so it says nothing a scenario could not say itself.
 | `set_pasteboard` | `text`; `device_refused` where the pasteboard does not read it back |
 | `read_pasteboard` | none, returns the text |
 | `screenshot` | `name?`, returns where it was saved |
-| `element_at` | `at: Enact.Point` (a fraction of the screen), returns the snapshot a press there lands on, or none; its `index_path` is empty, as it stands in no look |
+| `element_at` | `at: Enact.Point` (a fraction of the screen), returns the snapshot accessibility answers with there, or none; its `index_path` is empty, as it stands in no look |
 
 | composition | arguments |
 |---|---|
@@ -340,7 +351,7 @@ native, so it says nothing a scenario could not say itself.
 | `paste_text` | `text`: `set_pasteboard`, then command-V. For text no key types; what was on the pasteboard is replaced |
 | `clear_text` | none: command-A, then delete once, which leave the software keyboard up. A field that keeps command-A from selecting loses only the character before the caret; whether it is empty is read from a look |
 | `wait_for` | `where`, `timeout = 10`, `debounce = 0.5`, returns the snapshot |
-| `scroll_to` | `where`, `on` (what to swipe in), `direction` (the way the content moves), `timeout = 30`, `debounce = 0.5`: `swipe_on` each round `where` holds of nothing on the screen, returns the snapshot |
+| `scroll_to` | `where`, `on` (what to drag in), `direction` (the way the content moves), `timeout = 30`, `debounce = 0.5`: each round `where` holds of nothing `on` shows whole, `drag_on` in `direction` while the tree holds no match inside `on` and `drag_toward` the first match once it does, returns the snapshot. `on` keeps its place in the tree while its content scrolls. An element about as large as what `on` shows runs to `timed_out` |
 
 A verb whose parameters are all defaulted or optional, or that has none, is
 called with no `arguments`.
@@ -380,10 +391,16 @@ does not fold refuses them as `device_refused`. A look reads every element
 where the screen shows it, whichever way the screen is turned.
 
 A press lands where the screen shows what was aimed at, or not at all: `tap`
-and `long_press` on a disabled snapshot, or at a point off the screen, are
-`reference_unfit`, and `swipe_on` swipes across the part of its snapshot the
-screen shows. `tap_point` is for what no look can name, and `element_at` reads
-what a press at a point would land on. What no look names often stands beside
+and `long_press` on a disabled snapshot, at a point off the screen, or at a
+point where the element answering is neither the snapshot nor inside it, are
+`reference_unfit`, and `swipe_on` and `drag_on` stroke across the part of
+their snapshot the screen shows. A swipe lets go moving, and a list flings on;
+a drag comes to rest before it lets go, and the content stops where the stroke
+does. The element answering is read just before the press, so a screen
+that moved since the look, or an element drawn over the snapshot and reaching
+past it, is caught; one drawn within its frame, or a view accessibility does
+not answer for, is not, and the latter takes the press. `tap_point` is for what no look can name, and `element_at` reads
+the element accessibility answers with at a point. What no look names often stands beside
 what one does, as a menu shown under a field; `screen_point` gives that point
 from the field.
 
@@ -482,11 +499,18 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   body it stands in is the scenario's (its procedures and closures), so a verb's
   own statements in the library stay out. A statement holds the statements that
   ran under it, through the procedures and verbs it called, and its `kind` is the
-  procedure it called. An address is the recorded statements' names joined with
+  procedure it called by its qualified name, `Enact.tap` or `Login.main`. An address is the recorded statements' names joined with
   `/`, the trace Warp hands the observer read down to the scenario's own.
-- A failure is **charged where it happened**: address, evidence (screenshot and
-  tree, taken once) and the `failures` entry. The statements it travels out
-  through say `failed` and no more.
+- A failure is **charged where it happened**: address, evidence (taken once:
+  a screenshot, the look a scenario would have read, as JSON, and its
+  `summary`, the screen's headings, buttons and fields, which the plain report
+  prints on a `screen` line) and the `failures` entry. The statements it
+  travels out through say `failed` and no more. A failure a `try` caught is no
+  failure of the run, and its evidence goes with it unless the run is given
+  `--keep-caught-evidence`.
+- The look a failure left is what `enact eval` answers a query of a screen
+  against: a public, const and isolated procedure of one `Enact.Screen`, such
+  as a scenario's own check of which screen is up, run with no device.
 - Rounds: the statements a `repeat` round or a Warp loop ran are written under
   that round.
 - Failure kinds: `timed_out` · `device_refused` · `argument_refused` ·
@@ -505,10 +529,14 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   the path that certainly runs. A capability is a fact about the program the way
   a type is: a verb that could not work if reached is a defect whether or not
   this run arrives at it.
-- **`--stop-at` is observed, not asked for.** The journal watches for the
+- **A stop is observed, not asked for.** The journal watches for the
   address, cancels the run when it sees it, and the runner tells that
-  cancellation from a real one by the journal having seen it. A bounded run is
-  `completed` with `stop: { at, reached }`, and keeps no result. An address
+  cancellation from a real one by the journal having seen it. `--stop-at`
+  cancels once the statement completes, `--stop-before` once it starts, and
+  the statement stays out of the record. A cancelled run starts no device
+  operation, so nothing of a statement stopped before reaches the device. A
+  bounded run is `completed` with `stop: { at, before, reached }`, and keeps
+  no result. An address
   the scenario's statement tree does not have is refused before the run, with
   the addresses of the statements it names; one the run never arrives at is
   reported as never reached.
@@ -519,7 +547,7 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
   only the app it talks to, which it is handed like any other input.
 - The verb table grows exactly as Digit grows. describe-ui (the means of every
   look), describe-screen (what a screen fraction is a fraction of), record-video
-  and record-log (the `record` and `record_log` spans), stream-video (watching is not a step of a scenario),
+  and record-log (the `record` and `record_log` spans), stream-video and record-input (watching is not a step of a scenario),
   session (a run already holds its device) and device lifecycle are not verbs. The device set is
   managed from `enact device`: `create`, `clone` and `delete` add and remove
   devices, and `boot`, `shutdown`, `reboot` and `erase` act on one.
@@ -584,6 +612,38 @@ verb refuses it when it runs: a key the keyboard does not have, a point outside
           value: { call: { procedure: wait_for, arguments: { where: { closure: { parameters: [ { one: Enact.Snapshot } ], result: { of: { ref: one.label }, is: "General" } } } } } }
         - value: { call: { procedure: tap, arguments: { on: { ref: generalButton } } } }
   ```
+- `enact draft --record-input` writes the input the device is given instead
+  of lines: a person's taps in the simulator's window as much as anything else's,
+  read from `enact device record-input` until Ctrl-C. A tap, a long press and a
+  swipe are written as the lines' are, a swipe from where it began, the way it
+  went, as far as a `swipe` reaches and no further than the screen's edge
+  (`swipe_between`), as the device tells no more of where it ended. The software
+  keyboard's keys tapped in a row are one `type_text`, a delete taking back what
+  was typed, and the keys that only change the keyboard are left out; a key that
+  types no text, as Go, is a tap on it. A hardware key is a `press_key`, the home
+  button a `press_button`, and a gesture no verb does, as a double tap, a
+  comment. The input is told after it was given, so a press is
+  named by the look taken after the input before it, once that look holds still,
+  and only where the application showed the same element there when it was
+  pressed; a look of a screen that moved on names nothing, and the press is a
+  `tap_point` as for what no look names. A look taken while an app is still
+  coming to the front or leaving it can hold still on the screen being left, so
+  a press right after one is often a `tap_point`. An input given before the
+  look after the one before it began leaves a comment where that wait goes, as
+  the look may show what the input itself led to. An input is told about half a
+  second after it was given, and one not yet told when the recording is stopped
+  is not written. A recording the device ends, as one shut down does, fails the
+  command with what was given so far written. What a person meant, as a few swipes
+  and a tap that look for a row being a `scroll_to`, is the draft's reader's to
+  write.
+- `enact device record-input` is the UI test recorder of the Xcode Enact runs
+  with: each input is a JSON line with the names the device recognized it by
+  (`tap`, `long press`, `swipe up`, …), where it began, the element
+  accessibility answered there (the innermost, as the text inside a button), and
+  the application's tree as it was. A button, a hardware key (named as
+  `press-key` takes it), an application coming to the front and a turn of the
+  interface are lines of their own kinds. It runs until interrupted, and fails
+  once the device ends the recording, as one shut down does. Simulators only.
 - Waiting is not a command. What counts as there, and for how long, is a
   scenario's, so a wait from the shell is a scenario on stdin:
 

@@ -35,18 +35,16 @@ struct LongPressAction: EnactAction {
     }
     
     // MARK: - Property
-    static let operations: Set<Digit.Operation> = [.describeScreen, .longPress]
+    static let operations: Set<Digit.Operation> = [.describeScreen, .describeUI, .longPress]
     
     // MARK: - Initializer
     // MARK: - Public
     func act(_ invocation: Invocation<Self>, in environment: EnactEnvironment) async throws -> Warp.Value {
         let snapshot = try invocation.snapshot(.on)
         let fraction = invocation[.at] == .null ? nil : try invocation.fraction(.at)
-        let screen = try await environment.device.run(DescribeScreenOperator())
+        let point = try await snapshot.pressed(at: fraction, on: environment.device)
         
-        try await environment.device.run(
-            LongPressOperator(at: try snapshot.pressed(at: fraction, on: screen), duration: try invocation.double(.duration))
-        )
+        try await environment.device.run(LongPressOperator(at: point, duration: try invocation.double(.duration)))
         
         return .null
     }

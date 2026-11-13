@@ -83,6 +83,7 @@ struct DeviceTests {
                 .perform({ (operation: RecordVideoOperator) in self.note(operation); return Recording {} }),
                 .perform({ (operation: RecordLogOperator) in self.note(operation); return Recording {} }),
                 .perform({ (operation: StreamVideoOperator) in self.note(operation); return VideoStream {} }),
+                .perform({ (operation: RecordInputOperator) in self.note(operation); return InputRecording(loss: { nil }, end: {}) }),
                 .perform(note as (TapOperator) -> Void),
                 .perform(note as (LongPressOperator) -> Void),
                 .perform(note as (SwipeOperator) -> Void),
@@ -131,6 +132,28 @@ struct DeviceTests {
         // When / Then
         await #expect(throws: CapabilityError.self) {
             try await sut.run(BootOperator())
+        }
+        #expect(backend.bootCalls == 0)
+    }
+    
+    @Test("a cancelled task starts no operation on the device")
+    func aCancelledTaskStartsNothing() async {
+        // Given
+        let backend = BootBackend(bootable: true)
+        let sut = Device(backend: backend)
+        
+        // When
+        let ran = Task {
+            withUnsafeCurrentTask { task in task?.cancel() }
+            
+            try await sut.run(BootOperator())
+        }
+        let result = await ran.result
+        
+        // Then
+        guard case let .failure(error) = result, case .interrupted? = error as? DigitError else {
+            Issue.record("expected interrupted, got \(result)")
+            return
         }
         #expect(backend.bootCalls == 0)
     }
@@ -270,6 +293,7 @@ struct DeviceTests {
         _ = try await sut.recordVideo(to: "/tmp/out.mp4") {}
         _ = try await sut.recordLog(to: "/tmp/out.log", matching: nil) {}
         _ = try await sut.run(try StreamVideoOperator { _ in })
+        _ = try await sut.run(RecordInputOperator { _ in })
         try await sut.run(TapOperator(at: Point(x: 1, y: 2)))
         try await sut.run(try LongPressOperator(at: Point(x: 1, y: 2), duration: 0.5))
         try await sut.run(SwipeOperator(line))

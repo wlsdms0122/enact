@@ -38,8 +38,9 @@ struct DeviceStage {
     func report(
         _ text: String,
         arguments: [Warp.Name: Warp.Value] = [:],
-        stopAt: String? = nil,
+        stop: StopPoint? = nil,
         lock: DeviceLock? = nil,
+        keepsCaughtEvidence: Bool = false,
         sink: Journal.Sink? = nil
     ) async throws -> Report {
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -56,7 +57,8 @@ struct DeviceStage {
             device: environment.device,
             lock: lock ?? DeviceLock(directory: directory.appendingPathComponent("run-lock")),
             outputDirectory: environment.outputDirectory,
-            stopAt: stopAt,
+            stop: stop,
+            keepsCaughtEvidence: keepsCaughtEvidence,
             sink: sink
         )
     }

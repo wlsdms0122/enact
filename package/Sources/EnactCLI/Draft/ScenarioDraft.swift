@@ -107,6 +107,30 @@ struct ScenarioDraft {
                 ]
             ))
         
+        case let .swipe(point, direction, duration):
+            guard let screen = seen?.screen else {
+                statements.append(DraftStatement(
+                    comment: "no look read the screen to give the swipe as fractions of: swipe \(direction.rawValue) from \(spelled(point))"
+                ))
+                
+                return
+            }
+            
+            if let pressed {
+                append(.call("wait_for", [DraftNode.Entry("where", pressed.catch.where)]), comments: comments(on: pressed))
+            }
+            
+            let start = screen.fraction(of: point)
+            
+            append(.call(
+                "swipe_between",
+                [
+                    DraftNode.Entry("from", .fraction(start)),
+                    DraftNode.Entry("to", .fraction(direction.end(from: start))),
+                    DraftNode.Entry("duration", .number(duration))
+                ]
+            ))
+        
         case let .moveSlider(frame, to):
             if let pressed {
                 append(.call(
@@ -134,6 +158,16 @@ struct ScenarioDraft {
         
         wait = .settled
         waitForScreen(before: before, after: seen)
+    }
+    
+    // Closes an open wait with no screen to settle it by, as when the next input
+    // was given before the screen the press led on to was read. Nothing where no
+    // wait is open.
+    mutating func leaveUnsettled() {
+        guard case .open = wait else { return }
+        
+        wait = .settled
+        statements.append(DraftStatement(comment: "the next input came before the screen after this was read; wait here for what it showed"))
     }
     
     // Writes the wait for the screen a press led on to, by what it newly

@@ -17,7 +17,7 @@ struct JournalTests {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a run that reaches the end is completed with what it returned, each statement under its name and the verb it called")
+    @Test("a run that reaches the end is completed with what it returned, each statement under its name and the qualified name of the verb it called")
     func aRunThatEndsIsCompleted() async throws {
         // Given
         let sut = try DeviceStage()
@@ -38,7 +38,7 @@ struct JournalTests {
         #expect(report.outcome == .completed)
         #expect(report.result == ReportedValue(.string("hello"), enums: []))
         #expect(report.steps.map(\.path) == ["greet", "said"])
-        #expect(report.steps.map(\.kind) == ["type_text", nil])
+        #expect(report.steps.map(\.kind) == ["Enact.type_text", nil])
         #expect(report.steps.map(\.status) == [.ok, .ok])
         #expect(report.failures.isEmpty)
     }
@@ -170,7 +170,7 @@ struct JournalTests {
         // Then
         let rounds = try #require(report.steps.first?.rounds)
         
-        #expect(report.steps.first?.kind == "repeat")
+        #expect(report.steps.first?.kind == "Enact.repeat")
         #expect(rounds.map(\.index) == [0])
         #expect(rounds.first?.steps.map(\.path) == ["settled/shown"])
     }

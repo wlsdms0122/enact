@@ -65,6 +65,7 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
     
     public typealias Sink = @Sendable (Event) -> Void
     typealias Evidence = @Sendable (String) async -> StepReport.Evidence?
+    typealias Discard = @Sendable ([String]) -> Void
     
     // MARK: - Property
     let scenario: String
@@ -78,7 +79,9 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
     private let sink: Sink?
     private let lock = NSLock()
     private var evidence: Evidence?
+    private var discard: Discard?
     private var stopAt: StatementAddress?
+    private var stopsBefore = false
     private var onStop: (@Sendable () -> Void)?
     private var started = Date()
     private var stopped = false
@@ -99,15 +102,24 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
     
     // MARK: - Lifecycle
     public func statementStarted(at trace: Trace) async {
-        lock.withLock {
+        let stop: (@Sendable () -> Void)? = lock.withLock {
             settle(under: trace)
             name(trace)
             
-            guard isScenarios(trace) else { return }
+            guard isScenarios(trace) else { return nil }
             
             let parent = open.last
             let id = trace.hops.last.map(Self.label) ?? ""
             let address = (parent?.address ?? StatementAddress()).appending(id)
+            
+            // A stop before a statement leaves it out of the record: what the
+            // run goes on to do of it touches no device.
+            if stopsBefore, address == stopAt, !stopped {
+                stopped = true
+                
+                return onStop
+            }
+            
             let report = StepReport(id: id, path: address.description)
             
             open.append(
@@ -120,7 +132,11 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
                 )
             )
             emit(Event(event: "step_begin", path: report.path))
+            
+            return nil
         }
+        
+        stop?()
     }
     
     public func statementCompleted(at trace: Trace, result: Value) async {
@@ -134,7 +150,7 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
             
             file(finished)
             
-            guard address == stopAt, !stopped else { return nil }
+            guard !stopsBefore, address == stopAt, !stopped else { return nil }
             
             stopped = true
             
@@ -188,23 +204,47 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
         }
     }
     
+    // A caught failure is no failure of the run, and where the run discards
+    // evidence, the evidence its statements took goes with the charge.
     public func failureCaught(name: String?, error: any Error) async {
-        lock.withLock {
-            guard !open.isEmpty else { return }
+        let dropped: [String] = lock.withLock {
+            guard !open.isEmpty else { return [] }
             
-            open[open.count - 1].report.rescued = true
+            let last = open.count - 1
             
-            let mark = open[open.count - 1].chargeMark
+            open[last].report.rescued = true
+            
+            let mark = open[last].chargeMark
             
             if mark < charged.count { charged.removeSubrange(mark...) }
+            
+            guard discard != nil else { return [] }
+            
+            var paths = Self.dropEvidence(of: &open[last].children)
+            
+            for round in open[last].rounds.keys {
+                paths += Self.dropEvidence(of: &open[last].rounds[round, default: []])
+            }
+            
+            return paths
         }
+        
+        if !dropped.isEmpty { discard?(dropped) }
     }
     
     // MARK: - Public
-    func bound(at address: StatementAddress?, evidence: Evidence?, _ stop: @escaping @Sendable () -> Void) {
+    func bound(
+        at address: StatementAddress?,
+        before: Bool,
+        evidence: Evidence?,
+        discard: Discard? = nil,
+        _ stop: @escaping @Sendable () -> Void
+    ) {
         lock.withLock {
             self.stopAt = address
+            self.stopsBefore = before
             self.evidence = evidence
+            self.discard = discard
             self.onStop = stop
         }
     }
@@ -267,6 +307,36 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
         return name
     }
     
+    // Takes the evidence off the steps and every step under them, and says
+    // which files it was.
+    private static func dropEvidence(of steps: inout [StepReport]) -> [String] {
+        var paths: [String] = []
+        
+        steps = steps.map { step in
+            var step = step
+            
+            paths += [step.evidence?.screenshot, step.evidence?.look].compactMap { path in path }
+            step.evidence = nil
+            
+            if var children = step.steps {
+                paths += dropEvidence(of: &children)
+                step.steps = children
+            }
+            
+            step.rounds = step.rounds?.map { round in
+                var inner = round.steps
+                
+                paths += dropEvidence(of: &inner)
+                
+                return StepReport.Round(index: round.index, steps: inner)
+            }
+            
+            return step
+        }
+        
+        return paths
+    }
+    
     // Whether a run at the inner trace is under the outer one.
     private static func holds(_ outer: Trace, _ inner: Trace) -> Bool {
         inner.hops.starts(with: outer.hops)
@@ -291,15 +361,15 @@ public final class Journal: ExecutionObserver, @unchecked Sendable {
         return true
     }
     
-    // A statement run under a scenario statement names it by the procedure
-    // that statement called.
+    // A statement run under a scenario statement names it by the qualified
+    // name of the procedure that statement called.
     private func name(_ trace: Trace) {
         guard let index = open.lastIndex(where: { candidate in Self.holds(candidate.trace, trace) }),
             open[index].report.kind == nil,
             case let .procedure(called)? = trace.hops.dropFirst(open[index].trace.hops.count).first
         else { return }
         
-        open[index].report.kind = called.split(separator: ".").last.map(String.init) ?? called
+        open[index].report.kind = called
     }
     
     // The round a statement ran in under its parent: a loop's round or the
