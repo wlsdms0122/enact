@@ -32,7 +32,7 @@ public struct Engine: Sendable {
     // The query of a screen under its qualified name, `Module.procedure`,
     // from the scenario of that module and every one it calls.
     public func query(_ name: String, store: ScenarioStore) async throws -> ScreenQuery {
-        guard let dot = name.lastIndex(of: ".") else {
+        guard let dot = name.firstIndex(of: ".") else {
             throw QueryRefused("\(name) names no module: a query is named as Module.procedure")
         }
         

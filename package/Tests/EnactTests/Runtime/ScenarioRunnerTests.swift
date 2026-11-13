@@ -244,7 +244,7 @@ struct ScenarioRunnerTests {
             Element(label: "Transfer", role: .heading, frame: Element.Frame(x: 0, y: 0, width: 400, height: 40)),
             Element(label: "Amount", value: "0", role: .field, frame: Element.Frame(x: 0, y: 60, width: 400, height: 40)),
             Element(label: "", value: "Memo", role: .field, frame: Element.Frame(x: 0, y: 110, width: 400, height: 40)),
-            Element(label: "Send", role: .button, frame: Element.Frame(x: 0, y: 700, width: 400, height: 40)),
+            Element(label: "Send\nnow", role: .button, frame: Element.Frame(x: 0, y: 700, width: 400, height: 40)),
             Element(label: "Balance", role: .text, frame: Element.Frame(x: 0, y: 160, width: 400, height: 20))
         ])
         let text = scenarioFile("""
@@ -261,9 +261,9 @@ struct ScenarioRunnerTests {
         let summary = try #require(report.steps.last?.evidence?.summary)
         
         #expect(summary.headings == ["Transfer"])
-        #expect(summary.buttons == ["Send"])
+        #expect(summary.buttons == ["Send\nnow"])
         #expect(summary.fields == ["Amount", "Memo"])
-        #expect(report.plain.contains("screen  heading 'Transfer' · button 'Send' · field 'Amount', 'Memo'"), "\(report.plain)")
+        #expect(report.plain.contains("screen  heading 'Transfer' · button 'Send now' · field 'Amount', 'Memo'"), "\(report.plain)")
     }
     
     @Test("a failure a try caught leaves no evidence, unless the run keeps it", arguments: [false, true])
