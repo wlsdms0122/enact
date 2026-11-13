@@ -468,7 +468,73 @@ struct EngineTests {
         #expect(report.reportPath.map { path in FileManager.default.fileExists(atPath: path) } == true)
     }
     
+    @Test("a query of a screen answers of a look written down, with no device", arguments: [("Home", "true"), ("Settings", "false")])
+    func aQueryAnswersOfALookWrittenDown(_ heading: String, _ answer: String) async throws {
+        defer { cleanUp() }
+        
+        // Given
+        try write("home", Self.home)
+        
+        let look = Look(
+            screen: try Screen(width: 400, height: 800),
+            tree: [Element(label: heading, role: .heading, frame: Element.Frame(x: 0, y: 0, width: 400, height: 40))]
+        )
+        let query = try await sut.query("Home.shown", store: SearchPathStore(roots: [directory]))
+        
+        // When
+        let answered = try await sut.answer(query, of: try JSONEncoder().encode(look))
+        
+        // Then
+        #expect(answered == answer)
+    }
+    
+    @Test("a name that is no query of a screen is refused", arguments: [
+        ("Home.act", "is no query of a screen"),
+        ("Home.helper", "declares no public procedure"),
+        ("Home.absent", "declares no public procedure"),
+        ("shown", "names no module")
+    ])
+    func aNameThatIsNoQueryIsRefused(_ name: String, _ said: String) async throws {
+        defer { cleanUp() }
+        
+        // Given
+        try write("home", Self.home)
+        
+        // When
+        let refusal = await #expect(throws: QueryRefused.self) {
+            _ = try await sut.query(name, store: SearchPathStore(roots: [directory]))
+        }
+        
+        // Then
+        #expect(try #require(refusal).description.contains(said), "\(String(describing: refusal))")
+    }
+    
     // MARK: - Private
+    private static let home = """
+        name: Home
+        uses: [Enact]
+        procedures:
+          shown:
+            access: public
+            const: true
+            isolated: true
+            parameters: [ screen: Enact.Screen ]
+            returns: Bool
+            result: { of: { count: { of: { ref: screen.elements }, filter: { closure: { parameters: [ one: Enact.Snapshot ], result: { of: { ref: one.label }, is: Home } } } } }, greater_than: 0 }
+          helper:
+            const: true
+            isolated: true
+            parameters: [ screen: Enact.Screen ]
+            returns: Bool
+            result: true
+          act:
+            access: public
+            failing: anything
+            body:
+              - let: seen
+                value: { call: { procedure: look } }
+        """
+    
     private func write(_ name: String, _ text: String) throws {
         let file = directory.appendingPathComponent("\(name).yaml")
         

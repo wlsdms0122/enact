@@ -29,6 +29,21 @@ public struct Engine: Sendable {
         try await Scenario(name: name, loader: ScenarioLoader(vocabulary: builder.vocabulary, store: store), builder: builder)
     }
     
+    // The query of a screen under its qualified name, `Module.procedure`,
+    // from the scenario of that module and every one it calls.
+    public func query(_ name: String, store: ScenarioStore) async throws -> ScreenQuery {
+        guard let dot = name.firstIndex(of: ".") else {
+            throw QueryRefused("\(name) names no module: a query is named as Module.procedure")
+        }
+        
+        return try ScreenQuery(named: name, in: try await check(String(name[..<dot]), store: store))
+    }
+    
+    // What a query answers of a look written down, as a failure leaves one.
+    public func answer(_ query: ScreenQuery, of look: Data) async throws -> String {
+        try await query.answer(of: try JSONDecoder().decode(Look.self, from: look)).description
+    }
+    
     public func run(
         _ name: String,
         store: ScenarioStore,
@@ -36,6 +51,7 @@ public struct Engine: Sendable {
         inputs: [String: String] = [:],
         outputDirectory: URL,
         stop: StopPoint? = nil,
+        keepsCaughtEvidence: Bool = false,
         events: Journal.Sink? = nil,
         record: Bool = false
     ) async -> Report {
@@ -83,6 +99,7 @@ public struct Engine: Sendable {
             lock: DeviceLock(),
             outputDirectory: directory,
             stop: stop,
+            keepsCaughtEvidence: keepsCaughtEvidence,
             sink: events
         )
         

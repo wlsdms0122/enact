@@ -19,7 +19,7 @@ import WarpYAML
 package struct EnactVocabulary: Sendable {
     // MARK: - Property
     // The structs a look returns and a verb takes.
-    static let screenType: Warp.Name = "Enact.Screen"
+    package static let screenType: Warp.Name = "Enact.Screen"
     static let snapshotType: Warp.Name = "Enact.Snapshot"
     static let frameType: Warp.Name = "Enact.Frame"
     static let pointType: Warp.Name = "Enact.Point"
