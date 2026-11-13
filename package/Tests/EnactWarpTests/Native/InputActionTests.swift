@@ -61,6 +61,11 @@ struct InputActionTests {
             "SwipeOperator(stroke: Digit.Stroke(start: Digit.Point(x: 200.0, y: 780.0), end: Digit.Point(x: 200.0, y: 720.0), duration: 0.2))"
         ),
         (
+            "drag_on",
+            "{ on: \(snapshotLiteral(frame: (0, 700, 400, 200))), direction: { case: up } }",
+            "DragOperator(stroke: Digit.Stroke(start: Digit.Point(x: 200.0, y: 780.0), end: Digit.Point(x: 200.0, y: 720.0), duration: 0.2))"
+        ),
+        (
             "drag",
             "{ from: { struct: { x: 0, y: 0 } }, to: { struct: { x: 1, y: 1 } }, duration: 1 }",
             "DragOperator(stroke: Digit.Stroke(start: Digit.Point(x: 0.0, y: 0.0), end: Digit.Point(x: 400.0, y: 800.0), duration: 1.0))"
@@ -135,7 +140,8 @@ struct InputActionTests {
         ("tap", "{ on: \(snapshotLiteral(frame: (100, 900, 80, 40))) }", "off the screen"),
         ("tap", "{ on: \(snapshotLiteral(frame: (380, 200, 80, 40))), at: { struct: { x: 0.75, y: 0.5 } } }", "off the screen"),
         ("long_press", "{ on: \(snapshotLiteral(frame: (100, -100, 80, 40))) }", "off the screen"),
-        ("swipe_on", "{ on: \(snapshotLiteral(frame: (0, 900, 400, 200))), direction: { case: up } }", "off the screen")
+        ("swipe_on", "{ on: \(snapshotLiteral(frame: (0, 900, 400, 200))), direction: { case: up } }", "off the screen"),
+        ("drag_on", "{ on: \(snapshotLiteral(frame: (0, 900, 400, 200))), direction: { case: up } }", "off the screen")
     ])
     func anUnfitPressIsRefused(_ procedure: String, _ arguments: String, _ said: String) async throws {
         // Given

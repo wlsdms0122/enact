@@ -138,7 +138,7 @@ enum Library {
                 arguments: [ { ref: on }, { ref: direction }, { ref: duration } ]
         
           drag:
-            description: Presses at one point, moves to another and lets go, each given as fractions of the screen.
+            description: Presses at one point, moves to another and lets go at rest, each given as fractions of the screen, so content dragged moves as far as the stroke and stops.
             access: public
             parameters:
               - from: { type: "Enact.Point", hint: "fractions of the screen" }
@@ -149,6 +149,19 @@ enum Library {
               call:
                 procedure: Enact.Native.drag
                 arguments: [ { ref: from }, { ref: to }, { ref: duration } ]
+        
+          drag_on:
+            description: Drags inside a snapshot so its content moves in direction, across the part of it the screen shows, and lets go at rest, so the content moves as far as the stroke and stops.
+            access: public
+            parameters:
+              - on: { type: "Enact.Snapshot", hint: "what to drag in, such as a list, from a look" }
+              - direction: Enact.Direction
+              - duration: { type: "Double", default: 0.2, hint: "seconds the move takes" }
+            failing: [device_refused, argument_refused, reference_unfit]
+            result:
+              call:
+                procedure: Enact.Native.drag_on
+                arguments: [ { ref: on }, { ref: direction }, { ref: duration } ]
         
           respond_biometric:
             description: Answers a Face ID or Touch ID prompt.
@@ -568,6 +581,21 @@ enum Library {
                 procedure: Enact.Native.in_area
                 arguments: [ { ref: elements }, { ref: area }, { ref: screen } ]
         
+          fully_visible:
+            description: The snapshots a container shows whole, each inside the part of the container the screen shows.
+            access: public
+            const: true
+            isolated: true
+            parameters:
+              - elements: "Array<Enact.Snapshot>"
+              - in: { type: "Enact.Snapshot", hint: "the container, such as a list" }
+              - screen: { type: "Enact.Screen", hint: "the look the snapshots came from" }
+            returns: "Array<Enact.Snapshot>"
+            result:
+              call:
+                procedure: Enact.Native.fully_visible
+                arguments: [ { ref: elements }, { ref: in }, { ref: screen } ]
+        
           nearest:
             description: The snapshots ordered by how far the middle of each is from a point of the screen, the nearest first.
             access: public
@@ -733,11 +761,11 @@ enum Library {
             result: { ref: "found[0]" }
         
           scroll_to:
-            description: Swipes inside a snapshot until an element that where holds of is on the screen and stays put, and returns the first in reading order.
+            description: Drags inside a snapshot, most of the part of it the screen shows at a time and coming to rest each time, until an element that where holds of is shown whole in it and stays put, and returns the first in reading order. An element larger than the part shown, or one cut on the side the content moves toward, is never shown whole and runs to timed_out.
             access: public
             parameters:
               - where: { type: "const isolated (Enact.Snapshot) -> Bool", hint: "whether an element is the one scrolled to" }
-              - on: { type: "Enact.Snapshot", hint: "what to swipe in, such as a list, from a look" }
+              - on: { type: "Enact.Snapshot", hint: "what to drag in, such as a list, from a look" }
               - direction: { type: Enact.Direction, hint: "the way the content moves, up to bring what is below into view" }
               - timeout: { type: Double, default: 30, hint: "seconds it may scroll before timed_out" }
               - debounce: { type: Double, default: 0.5, hint: "seconds what was found must come back the same, so it is not caught moving" }
@@ -758,12 +786,18 @@ enum Library {
                             - let: seen
                               value: { call: { procedure: look } }
                             - let: matched
-                              value: { of: { ref: seen.elements }, filter: { ref: where } }
+                              value:
+                                call:
+                                  procedure: fully_visible
+                                  arguments:
+                                    elements: { of: { ref: seen.elements }, filter: { ref: where } }
+                                    in: { ref: on }
+                                    screen: { ref: seen }
                             - value:
                                 cases:
                                   - when: { of: { count: { ref: matched } }, is: 0 }
                                     then:
-                                      - value: { call: { procedure: swipe_on, arguments: { on: { ref: on }, direction: { ref: direction } } } }
+                                      - value: { call: { procedure: drag_on, arguments: { on: { ref: on }, direction: { ref: direction } } } }
                           result: { ref: matched }
                       until: { closure: { parameters: [ held: "Array<Enact.Snapshot>" ], result: { of: { count: { ref: held } }, greater_than: 0 } } }
             result: { ref: "found[0]" }
@@ -993,6 +1027,12 @@ enum Library {
           (parameter duration (type Double))
           (failing argument_refused device_refused))
         
+        (procedure Enact.Native.drag_on
+          (parameter on (type Enact.Snapshot))
+          (parameter direction (type Enact.Direction))
+          (parameter duration (type Double))
+          (failing argument_refused device_refused reference_unfit))
+        
         (procedure Enact.Native.element_at
           (parameter at (type Enact.Point))
           (returns (optional Enact.Snapshot))
@@ -1003,6 +1043,14 @@ enum Library {
         
         (procedure Enact.Native.fold
           (failing argument_refused device_refused))
+        
+        (procedure Enact.Native.fully_visible
+          (const)
+          (isolated)
+          (parameter elements (type (array Enact.Snapshot)))
+          (parameter in (type Enact.Snapshot))
+          (parameter screen (type Enact.Screen))
+          (returns (array Enact.Snapshot)))
         
         (procedure Enact.Native.in_area
           (const)

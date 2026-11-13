@@ -112,6 +112,22 @@ struct LookTests {
         #expect(seen.map(\.label) == ["Sheet", "Caption", "Save"])
     }
     
+    @Test("fully_visible keeps what a container shows whole, inside the part of it the screen shows", arguments: [
+        ("{ ref: \"seen.elements[0]\" }", ["Sheet", "Caption", "Save"]),
+        (snapshotLiteral(role: "container", frame: (0, 250, 400, 600)), ["Save", "Volume"]),
+        (snapshotLiteral(role: "container", frame: (0, 900, 400, 100)), [])
+    ])
+    func fullyVisibleKeepsWhatIsShownWhole(_ container: String, _ expected: [String]) async throws {
+        // When
+        let seen = try await asked(
+            "{ call: { procedure: fully_visible, arguments: { elements: { ref: seen.elements }, "
+                + "in: \(container), screen: { ref: seen } } } }"
+        )
+        
+        // Then
+        #expect(seen.map(\.label) == expected)
+    }
+    
     @Test("nearest orders by how far the middle of each is from a point")
     func nearestOrdersByDistance() async throws {
         // When
@@ -139,7 +155,7 @@ struct LookTests {
         #expect(try #require(refusal).kind == .argumentRefused)
     }
     
-    @Test("element_at reads the element a press at a point of the screen lands on, standing in no look")
+    @Test("element_at reads the element accessibility answers with at a point of the screen, standing in no look")
     func elementAtReadsTheHitElement() async throws {
         // Given
         let sut = try DeviceStage(elements: elements)

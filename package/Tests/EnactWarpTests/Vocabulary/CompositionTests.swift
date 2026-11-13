@@ -87,7 +87,7 @@ struct CompositionTests {
         #expect(try #require(refusal).kind == .timedOut)
     }
     
-    @Test("scroll_to that sees what it scrolls to returns it without swiping")
+    @Test("scroll_to that sees what it scrolls to whole returns it without dragging")
     func scrollToReturnsWhatIsShown() async throws {
         // Given
         let sut = try DeviceStage(elements: [
@@ -106,15 +106,16 @@ struct CompositionTests {
         }
         
         #expect(held["label"] == .string("Save"))
-        #expect(!sut.backend.performed.contains { operation in operation is SwipeOperator })
+        #expect(!sut.backend.performed.contains { operation in operation is DragOperator })
     }
     
-    @Test("scroll_to swipes inside the snapshot each round it does not see what it scrolls to, until timed_out")
-    func scrollToSwipesUntilTimedOut() async throws {
+    @Test("scroll_to drags inside the snapshot each round it does not see what it scrolls to whole, until timed_out", arguments: [
+        Element(label: "Cancel", role: .button, frame: Element.Frame(x: 10, y: 300, width: 80, height: 40)),
+        Element(label: "Save", role: .button, frame: Element.Frame(x: 10, y: 680, width: 80, height: 40))
+    ])
+    func scrollToDragsUntilTimedOut(_ shown: Element) async throws {
         // Given
-        let sut = try DeviceStage(elements: [
-            Element(label: "Cancel", role: .button, frame: Element.Frame(x: 10, y: 300, width: 80, height: 40))
-        ])
+        let sut = try DeviceStage(elements: [shown])
         let arguments = "{ where: \(labeled("Save")), on: \(snapshotLiteral(role: "container", frame: (0, 100, 400, 600))), direction: { case: up }, timeout: 0.5, debounce: 0.1 }"
         
         // When
@@ -124,7 +125,7 @@ struct CompositionTests {
         
         // Then
         #expect(try #require(refusal).kind == .timedOut)
-        #expect(sut.backend.performed.contains { operation in operation is SwipeOperator })
+        #expect(sut.backend.performed.contains { operation in operation is DragOperator })
     }
     
     @Test(
