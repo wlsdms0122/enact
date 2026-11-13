@@ -18,7 +18,7 @@ enum Library {
         
         procedures:
           tap:
-            description: Taps a snapshot, at its middle or at a point given as fractions of its frame. A disabled snapshot, or a point off the screen, is reference_unfit.
+            description: Taps a snapshot, at its middle or at a point given as fractions of its frame. A disabled snapshot, a point off the screen, or a point where what answers is neither the snapshot nor inside it, is reference_unfit.
             access: public
             parameters:
               - on: { type: "Enact.Snapshot", hint: "what to tap, from a look" }
@@ -41,7 +41,7 @@ enum Library {
                 arguments: [ { ref: at } ]
         
           long_press:
-            description: Holds a press on a snapshot for duration seconds. A disabled snapshot, or a point off the screen, is reference_unfit.
+            description: Holds a press on a snapshot for duration seconds. A disabled snapshot, a point off the screen, or a point where what answers is neither the snapshot nor inside it, is reference_unfit.
             access: public
             parameters:
               - on: { type: "Enact.Snapshot", hint: "what to press, from a look" }
@@ -527,7 +527,7 @@ enum Library {
             result: { call: { procedure: Enact.Native.look } }
         
           element_at:
-            description: Reads the element a press at a point of the screen lands on, given as fractions of it, or none where nothing answers. It stands in no look, so its index_path is empty.
+            description: Reads the element accessibility answers with at a point of the screen, given as fractions of it, or none where nothing answers. It stands in no look, so its index_path is empty.
             access: public
             parameters:
               - at: { type: "Enact.Point", hint: "fractions of the screen" }

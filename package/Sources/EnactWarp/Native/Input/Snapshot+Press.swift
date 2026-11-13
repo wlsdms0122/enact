@@ -11,20 +11,36 @@ import Foundation
 extension Snapshot {
     // MARK: - Public
     // Where a press on this snapshot lands, at fractions of its frame or its
-    // middle. A disabled element, or a press that would land off the screen,
-    // is refused: the press would do nothing, or touch nothing it was aimed at.
-    func pressed(at fraction: Point?, on screen: Screen) throws -> Point {
+    // middle. A press is refused where it would do nothing, or touch nothing
+    // it was aimed at: on a disabled element, off the screen, or where the
+    // element answering at that point is neither this one nor one inside it,
+    // as when the screen moved since the look or an element reaching past it
+    // is drawn over it. An element drawn within its frame, or one that
+    // accessibility does not answer for, is not told apart.
+    func pressed(at fraction: Point?, on device: Device) async throws -> Point {
         guard enabled else {
             throw StepFailure(.referenceUnfit, "\(named) is not enabled, so a press on it does nothing")
         }
         
         let point = frame.point(at: fraction)
+        let screen = try await device.run(DescribeScreenOperator())
         
         guard screen.contains(point) else {
             throw StepFailure(
                 .referenceUnfit,
                 "\(named) would be pressed at \(point.x.spelled), \(point.y.spelled), "
                     + "off the screen of \(screen.width.spelled) by \(screen.height.spelled)"
+            )
+        }
+        
+        let answering = try await device.run(DescribeUIOperator(at: point)).first
+        
+        guard let answering, frame.contains(answering.frame) else {
+            let found = answering.map { element in "\(element.named) answers there" } ?? "nothing answers there"
+            
+            throw StepFailure(
+                .referenceUnfit,
+                "\(named) would be pressed at \(point.x.spelled), \(point.y.spelled), but \(found)"
             )
         }
         
@@ -38,6 +54,8 @@ extension Snapshot {
         
         return "the \(role) snapshot"
     }
+    
+    // MARK: - Private
 }
 
 private extension Double {
