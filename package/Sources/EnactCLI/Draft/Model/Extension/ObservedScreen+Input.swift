@@ -28,19 +28,26 @@ extension ObservedScreen {
         let shown = gesture.application.map(Self.flattened) ?? []
         let touched = Element.Frame(x: point.x, y: point.y, width: 0, height: 0)
         
-        return elements.last { element in
-            let snapshot = element.snapshot
-            let same = { (other: Element) in
-                other.label == snapshot.label && other.id == snapshot.id
-                    && Self.holds(other.frame, snapshot.frame) && Self.holds(snapshot.frame, other.frame)
+        return elements.last { element in Self.same(answered, element.snapshot) }
+            ?? elements.last { element in
+                let snapshot = element.snapshot
+                
+                return Self.holds(snapshot.frame, answered.frame)
+                    && Self.holds(snapshot.frame, touched)
+                    && shown.contains { other in Self.same(other, snapshot) }
             }
-            
-            return same(answered)
-                || (Self.holds(snapshot.frame, answered.frame) && Self.holds(snapshot.frame, touched) && shown.contains(where: same))
-        }
     }
     
     // MARK: - Private
+    // Whether a recorded element is the one a look read, by the name a look gives
+    // it and its frame.
+    private static func same(_ element: Element, _ snapshot: Snapshot) -> Bool {
+        let read = Snapshot(element, at: [])
+        
+        return read.label == snapshot.label && read.id == snapshot.id
+            && holds(element.frame, snapshot.frame) && holds(snapshot.frame, element.frame)
+    }
+    
     // Within half a point, as two reads of one frame differ in their last digits.
     private static func holds(_ outer: Element.Frame, _ inner: Element.Frame) -> Bool {
         let slack = 0.5

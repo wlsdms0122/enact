@@ -17,8 +17,9 @@ enum DraftOperation {
     case tap(Point)
     case longPress(Point, duration: Double)
     case stroke(verb: String, Stroke)
-    // A stroke known by where it began and the way it went, as a recorded swipe is.
-    case swipe(Point, direction: String, duration: Double)
+    // A stroke known by where it began and the way it went, as a recorded swipe is,
+    // written as one that goes on from there as far as a swipe reaches.
+    case swipe(Point, direction: Direction, duration: Double)
     case moveSlider(Element.Frame, to: Double)
     case call(DraftNode)
     case comment(String)

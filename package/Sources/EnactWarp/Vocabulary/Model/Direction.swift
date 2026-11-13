@@ -10,7 +10,7 @@ import Foundation
 
 // Which way a swipe moves the content: up drags from low to high in what it
 // crosses, the screen or an element.
-enum Direction: String, Sendable, CaseIterable {
+package enum Direction: String, Sendable, CaseIterable {
     case up
     case down
     case left
@@ -30,6 +30,24 @@ enum Direction: String, Sendable, CaseIterable {
         let (start, end) = ends
         
         return try Stroke(start: frame.point(at: start), end: frame.point(at: end), duration: duration)
+    }
+    
+    // Where a stroke that begins at a point ends, both as fractions of what it
+    // crosses: as far on as a stroke reaches, and no further than the edge.
+    package func end(from start: Point) -> Point {
+        switch self {
+        case .up:
+            Point(x: start.x, y: max(start.y - Self.reach, 0))
+        
+        case .down:
+            Point(x: start.x, y: min(start.y + Self.reach, 1))
+        
+        case .left:
+            Point(x: max(start.x - Self.reach, 0), y: start.y)
+        
+        case .right:
+            Point(x: min(start.x + Self.reach, 1), y: start.y)
+        }
     }
     
     // MARK: - Private

@@ -19,13 +19,14 @@ final class InputRecordingDelegate: NSObject, @unchecked Sendable {
     ]
     // The characters AppKit makes for the keys press-key names.
     private static let keyNames: [Character: String] = [
-        "\r": "return", "\n": "return", "\u{3}": "return", "\t": "tab", "\u{1B}": "escape",
+        "\r": "return", "\n": "return", "\u{3}": "return", "\t": "tab", "\u{19}": "tab", "\u{1B}": "escape",
         "\u{7F}": "delete", "\u{8}": "delete", " ": "space",
         "\u{F700}": "up", "\u{F701}": "down", "\u{F702}": "left", "\u{F703}": "right",
         "\u{F729}": "home", "\u{F72B}": "end", "\u{F72C}": "page-up", "\u{F72D}": "page-down"
     ]
     
-    private let sink: @Sendable (InputEvent) -> Void
+    // Read and ended on the session's callback queue alone.
+    private var sink: (@Sendable (InputEvent) -> Void)?
     
     // MARK: - Initializer
     init(sink: @escaping @Sendable (InputEvent) -> Void) {
@@ -33,13 +34,19 @@ final class InputRecordingDelegate: NSObject, @unchecked Sendable {
     }
     
     // MARK: - Public
+    // Tells nothing from here on. Called on the session's callback queue, so an
+    // event being told is told whole before it.
+    func end() {
+        sink = nil
+    }
+    
     @objc(recordingSession:didRecordEvent:)
     func recordingSession(_ session: AnyObject, didRecordEvent event: NSObject) {
         let names = event.value(forKey: "eventNames") as? [String] ?? []
         
         // The device tells a button's press and its release as events of their own.
         if let name = names.first, name.hasPrefix(Self.buttonEvent) {
-            if let button = Self.buttons[String(name.dropFirst(Self.buttonEvent.count))] { sink(.button(button)) }
+            if let button = Self.buttons[String(name.dropFirst(Self.buttonEvent.count))] { sink?(.button(button)) }
             
             return
         }
@@ -59,7 +66,7 @@ final class InputRecordingDelegate: NSObject, @unchecked Sendable {
             application: (event.value(forKey: "startApplicationSnapshot") as? NSObject).map(Element.init(snapshot:))
         )
         
-        sink(.gesture(gesture))
+        sink?(.gesture(gesture))
     }
     
     // Keys come as AppKit tells them: the characters made, the ones made without
@@ -70,18 +77,35 @@ final class InputRecordingDelegate: NSObject, @unchecked Sendable {
         let unmodified = keys.value(forKey: "charactersIgnoringModfiers") as? String ?? ""
         let flags = (keys.value(forKey: "modifierFlags") as? NSNumber)?.uint64Value ?? 0
         
-        sink(.key(Self.key(characters: characters, unmodified: unmodified, flags: flags)))
+        sink?(.key(Self.key(characters: characters, unmodified: unmodified, flags: flags)))
     }
     
     @objc(recordingSession:didRecordApplicationActivated:)
     func recordingSession(_ session: AnyObject, didRecordApplicationActivated bundleID: NSString) {
-        sink(.activation(bundleID: bundleID as String))
+        sink?(.activation(bundleID: bundleID as String))
     }
     
     @objc(recordingSession:didRecordOrientationChange:)
     func recordingSession(_ session: AnyObject, didRecordOrientationChange orientation: NSString) {
-        sink(.orientation(orientation as String))
+        sink?(.orientation(orientation as String))
     }
+    
+    // The rest of what a session calls its delegate with, which it calls without
+    // asking whether the delegate answers: where the text goes and where the focus
+    // is are no input, and a session's end is the recording's own.
+    @objc(recordingSession:didRecordFirstResponderChangedWithApplicationSnapshot:)
+    func recordingSession(_ session: AnyObject, didRecordFirstResponderChangedWithApplicationSnapshot application: AnyObject?) {}
+    
+    @objc(recordingSession:didRecordNativeFocusItemChangeAtTime:parameterSnapshot:applicationSnapshot:)
+    func recordingSession(
+        _ session: AnyObject,
+        didRecordNativeFocusItemChangeAtTime time: AnyObject?,
+        parameterSnapshot: AnyObject?,
+        applicationSnapshot: AnyObject?
+    ) {}
+    
+    @objc(recordingSessionDidDisconnect:)
+    func recordingSessionDidDisconnect(_ session: AnyObject) {}
     
     // MARK: - Private
     // A character made with no modifier but shift holds the shift itself; a key

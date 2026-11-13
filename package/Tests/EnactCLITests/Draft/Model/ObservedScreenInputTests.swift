@@ -46,6 +46,32 @@ struct ObservedScreenInputTests {
         #expect(try #require(pressed).snapshot.role == .button)
     }
     
+    @Test("the answered element is the one the look names with the blanks around its label left out")
+    func theAnsweredElementUntrimmed() throws {
+        // Given
+        let answered = Element(label: " Continue\n", role: .button, frame: button.frame)
+        let sut = look([button])
+        
+        // When
+        let pressed = sut.element(pressedBy: press(answering: answered, application: nil))
+        
+        // Then
+        #expect(try #require(pressed).snapshot.label == "Continue")
+    }
+    
+    @Test("the answered element is named before one it holds, though the look lists that one after it")
+    func theAnsweredElementBeforeWhatItHolds() throws {
+        // Given
+        let sut = look([button, text])
+        let application = Element(role: .container, frame: Element.Frame(x: 0, y: 0, width: 400, height: 800), children: [button, text])
+        
+        // When
+        let pressed = sut.element(pressedBy: press(answering: button, application: application))
+        
+        // Then
+        #expect(try #require(pressed).snapshot.role == .button)
+    }
+    
     @Test("a look of a screen that moved on before the press names nothing")
     func aLookOfAnotherScreen() {
         // Given

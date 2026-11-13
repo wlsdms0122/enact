@@ -45,7 +45,7 @@ struct RecordedInputTests {
         
         #expect([tapped, held, swiped] == Array(repeating: Point(x: 10, y: 20), count: 3))
         #expect(duration == 1)
-        #expect(direction == "up")
+        #expect(direction == .up)
         #expect(swipeDuration == 0.1)
     }
     
@@ -125,6 +125,20 @@ struct RecordedInputTests {
         #expect(inside.isEmpty)
         #expect(typed.map(flow) == ["{ call: { procedure: type_text, arguments: { text: \"o\" } } }"])
         #expect(outside.count == 1)
+    }
+    
+    @Test("a tap that answers with a named element of another role is a tap, though the look's keys were under it")
+    func aTapThatAnswersWithANamedElement() {
+        // Given
+        var sut = RecordedInput()
+        let row = Element(label: "General", role: .button, frame: Element.Frame(x: 0, y: 600, width: 400, height: 50))
+        
+        // When
+        let written = sut.written(gesture("tap", point: Point(x: 320, y: 620), element: row), keys: keys)
+        
+        // Then
+        #expect(written.count == 1)
+        #expect(sut.remaining().isEmpty)
     }
     
     // MARK: - Private

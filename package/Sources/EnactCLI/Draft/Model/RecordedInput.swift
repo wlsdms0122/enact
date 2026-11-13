@@ -27,6 +27,9 @@ struct RecordedInput {
     // labels.
     private static let keyboardChanging = ["shift", "more", "numbers", "letters", "symbols", "next keyboard", "emoji", "dictate"]
     
+    // What the device names a swipe by, before the way it went.
+    private static let swipe = "swipe "
+    
     private var typed = ""
     
     // MARK: - Initializer
@@ -66,10 +69,13 @@ struct RecordedInput {
     // MARK: - Private
     // Nil for an input that is no tap on the software keyboard. The key is what
     // accessibility answered, else the look's key at the point, as the device can
-    // answer with no key while the keyboard redraws its keys. A tap inside the
-    // keyboard that names no key types nothing and is taken to change it.
+    // answer with a nameless element while the keyboard redraws its keys. A tap
+    // inside the keyboard that names no key types nothing and is taken to change it.
     private static func keyTap(_ event: InputEvent, keys: [Snapshot]) -> KeyTap? {
         guard case let .gesture(gesture) = event, gesture.names == ["tap"], let point = gesture.point else { return nil }
+        
+        // An element of another role with a name of its own is no key drawn over.
+        if let element = gesture.element, element.role != .key, element.label != nil || element.id != nil { return nil }
         
         let answered = gesture.element.flatMap { element in element.role == .key ? element.label : nil }
         let label = answered ?? keys.last { key in contains(key.frame, point) }?.label
@@ -143,11 +149,12 @@ struct RecordedInput {
         case "long press":
             return .longPress(point, duration: duration)
         
-        case "swipe up", "swipe down", "swipe left", "swipe right":
-            return .swipe(point, direction: String(name.dropFirst("swipe ".count)), duration: max(duration, 0.1))
-        
         default:
-            return .comment("no verb does the gesture '\(name)' at \(point.x),\(point.y)")
+            guard name.hasPrefix(swipe), let direction = Direction(rawValue: String(name.dropFirst(swipe.count))) else {
+                return .comment("no verb does the gesture '\(name)' at \(point.x),\(point.y)")
+            }
+            
+            return .swipe(point, direction: direction, duration: max(duration, 0.1))
         }
     }
 }

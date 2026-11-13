@@ -292,6 +292,28 @@ struct ScenarioDraftTests {
         #expect(body(of: sut) == written)
     }
     
+    @Test("a wait left unsettled is closed with a comment, and nothing is written where none is open")
+    func aWaitLeftUnsettled() {
+        // Given
+        let general = observed(label: "General", role: .button, y: 400, at: [0])
+        let seen = look([general])
+        var sut = ScenarioDraft(for: URL(fileURLWithPath: "/tmp/draft.yaml"))
+        
+        // When
+        sut.leaveUnsettled()
+        
+        let untouched = body(of: sut)
+        
+        sut.write(.tap(general.snapshot.frame.center), seen: seen, hit: hit(general))
+        sut.leaveUnsettled()
+        sut.settle(on: seen)
+        
+        // Then
+        #expect(untouched.isEmpty)
+        #expect(!sut.awaitsScreen)
+        #expect(body(of: sut).last == "# the next input came before the screen after this was read; wait here for what it showed")
+    }
+    
     @Test("a wait is settled at the end of input, with a comment where that look failed, and what leads on nowhere opens none")
     func aWaitIsSettledAtTheEnd() {
         // Given
@@ -336,7 +358,7 @@ struct ScenarioDraftTests {
         sut.settle(on: nil)
         sut.write(.call(.call("type_text", [DraftNode.Entry("text", .quoted("wifi \"5G\""))])), seen: nil, hit: nil)
         sut.write(.comment("no verb does this: set-orientation landscape-left"), seen: nil, hit: nil)
-        sut.write(.swipe(general.snapshot.frame.center, direction: "up", duration: 0.3), seen: look([general]), hit: hit(general))
+        sut.write(.swipe(general.snapshot.frame.center, direction: .up, duration: 0.3), seen: look([general]), hit: hit(general))
         sut.settle(on: nil)
         var input = RecordedInput()
         
@@ -354,21 +376,33 @@ struct ScenarioDraftTests {
         #expect(scenario.entry != nil)
     }
     
-    @Test("a recorded swipe waits for what it began on and swipes the screen in its direction")
+    @Test("a recorded swipe waits for what it began on and swipes on from where it began, the way it went")
     func aRecordedSwipe() {
         // Given
         let general = observed(label: "General", role: .button, y: 400, at: [0])
         var sut = ScenarioDraft(for: URL(fileURLWithPath: "/tmp/draft.yaml"))
         
         // When
-        sut.write(.swipe(general.snapshot.frame.center, direction: "up", duration: 0.3), seen: look([general]), hit: hit(general))
+        sut.write(.swipe(general.snapshot.frame.center, direction: .up, duration: 0.3), seen: look([general]), hit: hit(general))
         
         // Then
         let lines = body(of: sut)
         
         #expect(sut.awaitsScreen)
-        #expect(lines.last == "- value: { call: { procedure: swipe, arguments: { direction: { case: up }, duration: 0.3 } } }")
+        #expect(lines.last == "- value: { call: { procedure: swipe_between, arguments: { from: { struct: { x: 0.5, y: 0.513 } }, to: { struct: { x: 0.5, y: 0.0 } }, duration: 0.3 } } }")
         #expect(lines.first?.contains(#"is: "General""#) == true)
+    }
+    
+    @Test("a recorded swipe no look read the screen for is a comment")
+    func aRecordedSwipeUnseen() {
+        // Given
+        var sut = ScenarioDraft(for: URL(fileURLWithPath: "/tmp/draft.yaml"))
+        
+        // When
+        sut.write(.swipe(Point(x: 200, y: 410), direction: .left, duration: 0.3), seen: nil, hit: nil)
+        
+        // Then
+        #expect(body(of: sut) == ["# no look read the screen to give the swipe as fractions of: swipe left from 200.0,410.0"])
     }
     
     // MARK: - Private

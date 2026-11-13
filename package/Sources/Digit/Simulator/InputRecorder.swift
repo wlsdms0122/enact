@@ -79,7 +79,14 @@ enum InputRecorder {
         return InputRecording {
             held.0.stopRecording()
             close()
-            _ = held.1
+            
+            // An event the daemon had already sent may still be on the queue.
+            await withCheckedContinuation { continuation in
+                queue.async {
+                    held.1.end()
+                    continuation.resume()
+                }
+            }
         }
     }
     

@@ -48,7 +48,8 @@ struct Draft: AsyncParsableCommand {
             With --record-input no line is read: what is written is the input \
             the device is given, a person's taps in the simulator's window as \
             much as anything else's, as enact device record-input reads it, \
-            until Ctrl-C. A swipe is written by its direction, the software \
+            until Ctrl-C. A swipe is written from where it began, the way it \
+            went, as far as a swipe reaches, the software \
             keyboard's keys tapped in a row as one type_text, and a press is \
             named by the look taken after the input before it, where the \
             application showed the same element there when it was pressed.
@@ -142,27 +143,37 @@ struct Draft: AsyncParsableCommand {
     private func draftInput(of device: Device, seenBy observer: ScreenObserver, to file: URL) async throws {
         var draft = ScenarioDraft(for: file)
         var input = RecordedInput()
-        let (events, received) = AsyncStream<InputEvent>.makeStream()
+        let (events, received) = AsyncStream<(event: InputEvent, told: Date)>.makeStream()
         let signals = SignalWaiter([SIGINT, SIGTERM])
         defer { signals.disarm() }
         
         save(draft, to: file)
         
         // Input given while the first look is taken is held until it is read.
-        let recording = try await device.run(RecordInputOperator { event in received.yield(event) })
-        var seen = try? await observer.look()
+        let recording = try await device.run(RecordInputOperator { event in received.yield((event: event, told: Date())) })
+        var (seen, began) = await Self.look(by: observer)
         
         FileHandle.standardError.write(Data("enact: recording the input to \(output); Ctrl-C ends it\n".utf8))
         
+        // The recording ends before the input does, so what was given up to the
+        // stop is still written.
         let stopping = Task {
+            defer { received.finish() }
+            
             await signals.wait()
-            received.finish()
+            try await recording.stop()
         }
         
-        for await event in events {
+        for await (event, told) in events {
             // The screen an input was given on is the one the input before led to,
-            // so the wait for it goes before anything the input writes.
-            draft.settle(on: seen)
+            // so the wait for it goes before anything the input writes. A look begun
+            // after the input was given may show what the input itself led to, and
+            // is no screen to wait for before it.
+            if began <= Self.given(event, told: told) {
+                draft.settle(on: seen)
+            } else {
+                draft.leaveUnsettled()
+            }
             
             let operations = input.written(event, keys: seen?.keys ?? [])
             
@@ -174,7 +185,7 @@ struct Draft: AsyncParsableCommand {
             
             // What an input did is read where it comes to rest; a key that only adds
             // to the text being typed is read once, for the keys it leaves showing.
-            seen = operations.isEmpty ? try? await observer.look() : await Self.settledLook(by: observer)
+            (seen, began) = operations.isEmpty ? await Self.look(by: observer) : await Self.settledLook(by: observer)
         }
         
         for operation in input.remaining() {
@@ -183,21 +194,34 @@ struct Draft: AsyncParsableCommand {
         
         draft.settle(on: seen)
         save(draft, to: file)
-        stopping.cancel()
-        try await recording.stop()
+        try await stopping.value
+    }
+    
+    // When an input was given: a gesture tells when it began, and anything else
+    // is taken by when it was told.
+    private static func given(_ event: InputEvent, told: Date) -> Date {
+        if case let .gesture(gesture) = event { gesture.time } else { told }
+    }
+    
+    // A look, nil where it failed, and when it began.
+    private static func look(by observer: ScreenObserver) async -> (seen: ObservedScreen?, began: Date) {
+        let began = Date()
+        
+        return (seen: try? await observer.look(), began: began)
     }
     
     // A look taken again until two in a row agree, so a screen still moving after
     // the input, as a list scrolling on, is read where it comes to rest.
-    private static func settledLook(by observer: ScreenObserver) async -> ObservedScreen? {
-        var last = try? await observer.look()
+    // It began when the first of the two did, as the screen was the same from then.
+    private static func settledLook(by observer: ScreenObserver) async -> (seen: ObservedScreen?, began: Date) {
+        var last = await look(by: observer)
         
         for _ in 0..<5 {
             try? await Task.sleep(for: .milliseconds(300))
             
-            let next = try? await observer.look()
+            let next = await look(by: observer)
             
-            if next == last { break }
+            if next.seen == last.seen { break }
             
             last = next
         }
