@@ -292,6 +292,28 @@ struct ScenarioDraftTests {
         #expect(body(of: sut) == written)
     }
     
+    @Test("a wait left unsettled is closed with a comment, and nothing is written where none is open")
+    func aWaitLeftUnsettled() {
+        // Given
+        let general = observed(label: "General", role: .button, y: 400, at: [0])
+        let seen = look([general])
+        var sut = ScenarioDraft(for: URL(fileURLWithPath: "/tmp/draft.yaml"))
+        
+        // When
+        sut.leaveUnsettled()
+        
+        let untouched = body(of: sut)
+        
+        sut.write(.tap(general.snapshot.frame.center), seen: seen, hit: hit(general))
+        sut.leaveUnsettled()
+        sut.settle(on: seen)
+        
+        // Then
+        #expect(untouched.isEmpty)
+        #expect(!sut.awaitsScreen)
+        #expect(body(of: sut).last == "# the next input came before the screen after this was read; wait here for what it showed")
+    }
+    
     @Test("a wait is settled at the end of input, with a comment where that look failed, and what leads on nowhere opens none")
     func aWaitIsSettledAtTheEnd() {
         // Given

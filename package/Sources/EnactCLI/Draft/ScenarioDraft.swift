@@ -160,6 +160,16 @@ struct ScenarioDraft {
         waitForScreen(before: before, after: seen)
     }
     
+    // Closes an open wait with no screen to settle it by, as when the next input
+    // was given before the screen the press led on to was read. Nothing where no
+    // wait is open.
+    mutating func leaveUnsettled() {
+        guard case .open = wait else { return }
+        
+        wait = .settled
+        statements.append(DraftStatement(comment: "the next input came before the screen after this was read; wait here for what it showed"))
+    }
+    
     // Writes the wait for the screen a press led on to, by what it newly
     // shows.
     mutating func waitForScreen(before: ObservedScreen?, after: ObservedScreen?) {
