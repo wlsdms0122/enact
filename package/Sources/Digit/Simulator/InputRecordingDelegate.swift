@@ -19,7 +19,7 @@ final class InputRecordingDelegate: NSObject, @unchecked Sendable {
     ]
     // The characters AppKit makes for the keys press-key names.
     private static let keyNames: [Character: String] = [
-        "\r": "return", "\n": "return", "\u{3}": "return", "\t": "tab", "\u{1B}": "escape",
+        "\r": "return", "\n": "return", "\u{3}": "return", "\t": "tab", "\u{19}": "tab", "\u{1B}": "escape",
         "\u{7F}": "delete", "\u{8}": "delete", " ": "space",
         "\u{F700}": "up", "\u{F701}": "down", "\u{F702}": "left", "\u{F703}": "right",
         "\u{F729}": "home", "\u{F72B}": "end", "\u{F72C}": "page-up", "\u{F72D}": "page-down"

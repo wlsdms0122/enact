@@ -54,6 +54,7 @@ struct InputRecordingDelegateTests {
             ("\r", "\r", 0, InputEvent.Key(key: "return", modifiers: [])),
             ("\u{F729}", "\u{F729}", 0, InputEvent.Key(key: "home", modifiers: [])),
             ("\u{F702}", "\u{F702}", 1 << 17, InputEvent.Key(key: "left", modifiers: [.shift])),
+            ("\u{19}", "\u{19}", 1 << 17, InputEvent.Key(key: "tab", modifiers: [.shift])),
             ("ç", "c", 1 << 19 | 1 << 20, InputEvent.Key(key: "c", modifiers: [.option, .command]))
         ] as [(String, String, UInt64, InputEvent.Key)]
     )
