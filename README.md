@@ -385,9 +385,9 @@ and `long_press` on a disabled snapshot, at a point off the screen, or at a
 point where the element answering is neither the snapshot nor inside it, are
 `reference_unfit`, and `swipe_on` swipes across the part of its snapshot the
 screen shows. The element answering is read just before the press, so a screen
-that moved since the look, or an element drawn over the snapshot, is caught;
-a view drawn over it that accessibility does not answer for is not, and takes
-the press. `tap_point` is for what no look can name, and `element_at` reads
+that moved since the look, or an element drawn over the snapshot and reaching
+past it, is caught; one drawn within its frame, or a view accessibility does
+not answer for, is not, and the latter takes the press. `tap_point` is for what no look can name, and `element_at` reads
 the element accessibility answers with at a point. What no look names often stands beside
 what one does, as a menu shown under a field; `screen_point` gives that point
 from the field.
