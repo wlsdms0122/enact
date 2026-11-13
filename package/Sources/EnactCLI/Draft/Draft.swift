@@ -44,6 +44,14 @@ struct Draft: AsyncParsableCommand {
             
             The draft is for a person to edit: what is pressed and what is \
             waited for are what one run of the lines saw.
+            
+            With --record-input no line is read: what is written is the input \
+            the device is given, a person's taps in the simulator's window as \
+            much as anything else's, as enact device record-input reads it, \
+            until Ctrl-C. A swipe is written by its direction, the software \
+            keyboard's keys tapped in a row as one type_text, and a press is \
+            named by the look taken after the input before it, where the \
+            application showed the same element there when it was pressed.
             """
     )
     
@@ -52,13 +60,29 @@ struct Draft: AsyncParsableCommand {
     @Option(name: .customLong("output"), help: "The scenario file the draft is written to.")
     var output: String
     
+    @Flag(
+        name: .customLong("record-input"),
+        help: "Write the input the device is given, by a person or anything else, until stopped, instead of reading lines."
+    )
+    var recordsInput = false
+    
     // MARK: - Initializer
     // MARK: - Public
     func run() async throws {
         let device = try target.device()
-        let interpreter = SessionInterpreter(udid: target.udid)
         let observer = try await ScreenObserver(device: device)
         let file = URL(fileURLWithPath: output)
+        
+        if recordsInput {
+            try await draftInput(of: device, seenBy: observer, to: file)
+        } else {
+            try await draftLines(on: device, seenBy: observer, to: file)
+        }
+    }
+    
+    // MARK: - Private
+    private func draftLines(on device: Device, seenBy observer: ScreenObserver, to file: URL) async throws {
+        let interpreter = SessionInterpreter(udid: target.udid)
         var draft = ScenarioDraft(for: file)
         
         save(draft, to: file)
@@ -112,7 +136,75 @@ struct Draft: AsyncParsableCommand {
         }
     }
     
-    // MARK: - Private
+    // The input comes after it was given, so a press is named by the look taken
+    // after the input before it, which is also the screen that input led on to.
+    // The keys typed on the software keyboard in a row are written as one text.
+    private func draftInput(of device: Device, seenBy observer: ScreenObserver, to file: URL) async throws {
+        var draft = ScenarioDraft(for: file)
+        var input = RecordedInput()
+        let (events, received) = AsyncStream<InputEvent>.makeStream()
+        let signals = SignalWaiter([SIGINT, SIGTERM])
+        defer { signals.disarm() }
+        
+        save(draft, to: file)
+        
+        // Input given while the first look is taken is held until it is read.
+        let recording = try await device.run(RecordInputOperator { event in received.yield(event) })
+        var seen = try? await observer.look()
+        
+        FileHandle.standardError.write(Data("enact: recording the input to \(output); Ctrl-C ends it\n".utf8))
+        
+        let stopping = Task {
+            await signals.wait()
+            received.finish()
+        }
+        
+        for await event in events {
+            // The screen an input was given on is the one the input before led to,
+            // so the wait for it goes before anything the input writes.
+            draft.settle(on: seen)
+            
+            let operations = input.written(event, keys: seen?.keys ?? [])
+            
+            for operation in operations {
+                draft.write(operation, seen: seen, hit: seen?.element(pressedBy: event))
+            }
+            
+            save(draft, to: file)
+            
+            // What an input did is read where it comes to rest; a key that only adds
+            // to the text being typed is read once, for the keys it leaves showing.
+            seen = operations.isEmpty ? try? await observer.look() : await Self.settledLook(by: observer)
+        }
+        
+        for operation in input.remaining() {
+            draft.write(operation, seen: nil, hit: nil)
+        }
+        
+        draft.settle(on: seen)
+        save(draft, to: file)
+        stopping.cancel()
+        try await recording.stop()
+    }
+    
+    // A look taken again until two in a row agree, so a screen still moving after
+    // the input, as a list scrolling on, is read where it comes to rest.
+    private static func settledLook(by observer: ScreenObserver) async -> ObservedScreen? {
+        var last = try? await observer.look()
+        
+        for _ in 0..<5 {
+            try? await Task.sleep(for: .milliseconds(300))
+            
+            let next = try? await observer.look()
+            
+            if next == last { break }
+            
+            last = next
+        }
+        
+        return last
+    }
+    
     private func save(_ draft: ScenarioDraft, to file: URL) {
         do {
             try draft.text.write(to: file, atomically: true, encoding: .utf8)

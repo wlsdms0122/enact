@@ -83,6 +83,7 @@ struct DeviceTests {
                 .perform({ (operation: RecordVideoOperator) in self.note(operation); return Recording {} }),
                 .perform({ (operation: RecordLogOperator) in self.note(operation); return Recording {} }),
                 .perform({ (operation: StreamVideoOperator) in self.note(operation); return VideoStream {} }),
+                .perform({ (operation: RecordInputOperator) in self.note(operation); return InputRecording {} }),
                 .perform(note as (TapOperator) -> Void),
                 .perform(note as (LongPressOperator) -> Void),
                 .perform(note as (SwipeOperator) -> Void),
@@ -292,6 +293,7 @@ struct DeviceTests {
         _ = try await sut.recordVideo(to: "/tmp/out.mp4") {}
         _ = try await sut.recordLog(to: "/tmp/out.log", matching: nil) {}
         _ = try await sut.run(try StreamVideoOperator { _ in })
+        _ = try await sut.run(RecordInputOperator { _ in })
         try await sut.run(TapOperator(at: Point(x: 1, y: 2)))
         try await sut.run(try LongPressOperator(at: Point(x: 1, y: 2), duration: 0.5))
         try await sut.run(SwipeOperator(line))

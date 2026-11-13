@@ -28,6 +28,7 @@ public enum Operation: String, CaseIterable, Sendable {
     case recordVideo = "record-video"
     case recordLog = "record-log"
     case streamVideo = "stream-video"
+    case recordInput = "record-input"
     case tap
     case longPress = "long-press"
     case swipe

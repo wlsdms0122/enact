@@ -135,7 +135,7 @@ struct ScenarioDraftTests {
         #expect(lines[0] == "- let: backbuttonButton")
         #expect(lines[1].contains(#"{ of: { ref: one.id }, is: "BackButton" }"#))
     }
-
+    
     @Test("where no catch holds of the pressed element alone, the first under which it is the first in reading order is used")
     func aCatchThatFindsThePressedOneFirstIsUsed() {
         // Given
@@ -143,20 +143,20 @@ struct ScenarioDraftTests {
         let pressed = observed(label: "Delete", role: .button, y: 300, at: [1])
         let other = observed(label: "Delete", role: .button, y: 500, at: [2])
         var sut = ScenarioDraft(for: URL(fileURLWithPath: "/tmp/draft.yaml"))
-
+        
         // When
         sut.write(.tap(pressed.snapshot.frame.center), seen: look([note, pressed, other]), hit: hit(pressed))
-
+        
         // Then
         let lines = body(of: sut)
-
+        
         #expect(lines[0] == "# this catches 2 elements; the one pressed is the 1st in reading order")
         #expect(lines[1] == "- let: deleteButton")
         #expect(lines[2].contains("{ let: role, type: Enact.Role, value: { case: button } }"))
         #expect(lines[2].contains("is: \"Delete\""))
         #expect(!lines[2].contains("ref: one.label"))
     }
-
+    
     @Test("the screen a press led on to is waited for by what it newly shows, a heading first, then a field or a button, then a text")
     func theNextScreenIsWaitedForByTier() {
         // Given
@@ -336,6 +336,13 @@ struct ScenarioDraftTests {
         sut.settle(on: nil)
         sut.write(.call(.call("type_text", [DraftNode.Entry("text", .quoted("wifi \"5G\""))])), seen: nil, hit: nil)
         sut.write(.comment("no verb does this: set-orientation landscape-left"), seen: nil, hit: nil)
+        sut.write(.swipe(general.snapshot.frame.center, direction: "up", duration: 0.3), seen: look([general]), hit: hit(general))
+        sut.settle(on: nil)
+        var input = RecordedInput()
+        
+        for operation in [.key(InputEvent.Key(key: "c", modifiers: [.command])), .button(.home)].flatMap({ event in input.written(event, keys: []) }) {
+            sut.write(operation, seen: nil, hit: nil)
+        }
         
         // When
         let scenario = try await Engine().check(
@@ -345,6 +352,23 @@ struct ScenarioDraftTests {
         
         // Then
         #expect(scenario.entry != nil)
+    }
+    
+    @Test("a recorded swipe waits for what it began on and swipes the screen in its direction")
+    func aRecordedSwipe() {
+        // Given
+        let general = observed(label: "General", role: .button, y: 400, at: [0])
+        var sut = ScenarioDraft(for: URL(fileURLWithPath: "/tmp/draft.yaml"))
+        
+        // When
+        sut.write(.swipe(general.snapshot.frame.center, direction: "up", duration: 0.3), seen: look([general]), hit: hit(general))
+        
+        // Then
+        let lines = body(of: sut)
+        
+        #expect(sut.awaitsScreen)
+        #expect(lines.last == "- value: { call: { procedure: swipe, arguments: { direction: { case: up }, duration: 0.3 } } }")
+        #expect(lines.first?.contains(#"is: "General""#) == true)
     }
     
     // MARK: - Private

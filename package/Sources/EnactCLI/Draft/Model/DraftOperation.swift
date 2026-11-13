@@ -17,6 +17,8 @@ enum DraftOperation {
     case tap(Point)
     case longPress(Point, duration: Double)
     case stroke(verb: String, Stroke)
+    // A stroke known by where it began and the way it went, as a recorded swipe is.
+    case swipe(Point, direction: String, duration: Double)
     case moveSlider(Element.Frame, to: Double)
     case call(DraftNode)
     case comment(String)
@@ -46,6 +48,9 @@ enum DraftOperation {
         case let .stroke(_, stroke):
             stroke.start
         
+        case let .swipe(point, _, _):
+            point
+        
         case let .moveSlider(frame, _):
             frame.center
         
@@ -58,7 +63,7 @@ enum DraftOperation {
     // waits for.
     var leadsOn: Bool {
         switch self {
-        case .tap, .longPress, .stroke:
+        case .tap, .longPress, .stroke, .swipe:
             true
         
         case .moveSlider, .call, .comment:
