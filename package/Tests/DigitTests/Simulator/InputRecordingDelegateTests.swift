@@ -61,7 +61,7 @@ struct InputRecordingDelegateTests {
     func keysAreNamed(characters: String, unmodified: String, flags: UInt64, key: InputEvent.Key) {
         // Given
         let received = Mutex<[InputEvent]>([])
-        let sut = InputRecordingDelegate { event in received.withLock { events in events.append(event) } }
+        let sut = InputRecordingDelegate(sink: { event in received.withLock { events in events.append(event) } }, disconnected: {})
         
         // When
         sut.recordingSession(NSObject(), didRecordKeyEvents: Keys(characters, unmodified, flags: flags))
@@ -82,7 +82,7 @@ struct InputRecordingDelegateTests {
     func endedTellsNothing() {
         // Given
         let received = Mutex<[InputEvent]>([])
-        let sut = InputRecordingDelegate { event in received.withLock { events in events.append(event) } }
+        let sut = InputRecordingDelegate(sink: { event in received.withLock { events in events.append(event) } }, disconnected: {})
         
         sut.recordingSession(NSObject(), didRecordEvent: Event(["tap"]))
         
@@ -95,11 +95,45 @@ struct InputRecordingDelegateTests {
         #expect(received.withLock { events in events.count } == 1)
     }
     
+    @Test("a session disconnected is told once, and nothing more after it")
+    func disconnectedIsTold() {
+        // Given
+        let received = Mutex<[InputEvent]>([])
+        let disconnections = Mutex(0)
+        let sut = InputRecordingDelegate(
+            sink: { event in received.withLock { events in events.append(event) } },
+            disconnected: { disconnections.withLock { count in count += 1 } }
+        )
+        
+        // When
+        sut.recordingSessionDidDisconnect(NSObject())
+        sut.recordingSessionDidDisconnect(NSObject())
+        sut.recordingSession(NSObject(), didRecordEvent: Event(["tap"]))
+        
+        // Then
+        #expect(disconnections.withLock { count in count } == 1)
+        #expect(received.withLock { events in events.isEmpty })
+    }
+    
+    @Test("once ended, a session disconnected is not told")
+    func endedTellsNoDisconnection() {
+        // Given
+        let disconnections = Mutex(0)
+        let sut = InputRecordingDelegate(sink: { _ in }, disconnected: { disconnections.withLock { count in count += 1 } })
+        
+        // When
+        sut.end()
+        sut.recordingSessionDidDisconnect(NSObject())
+        
+        // Then
+        #expect(disconnections.withLock { count in count } == 0)
+    }
+    
     @Test("the home button's press is the button, its release nothing, and a gesture is told by its names")
     func buttonsAndGestures() {
         // Given
         let received = Mutex<[InputEvent]>([])
-        let sut = InputRecordingDelegate { event in received.withLock { events in events.append(event) } }
+        let sut = InputRecordingDelegate(sink: { event in received.withLock { events in events.append(event) } }, disconnected: {})
         
         // When
         for names in [["XCUIEventTypeMenuButtonDown"], ["XCUIEventTypeACHomeUp"], ["tap"]] {
