@@ -1,0 +1,251 @@
+//
+//  Draft.swift
+//  EnactCLI
+//
+//  Created by JSilver on 11/10/26.
+//
+
+import ArgumentParser
+import Digit
+import DigitCLI
+import Enact
+import Foundation
+
+struct Draft: AsyncParsableCommand {
+    // MARK: - Property
+    static let configuration = CommandConfiguration(
+        commandName: "draft",
+        abstract: "Write what each line of standard input does to a device as a scenario draft.",
+        discussion: """
+            The lines and their answers are a session's, as enact device session \
+            reads and answers them. Each line that does something to the device \
+            is also written to --output as a statement of the draft's main, in \
+            the order the lines came, by the verb that does the same. A line \
+            that only reads the device, a line that is refused, and a line that \
+            fails are not written. What no verb does is written as a comment. \
+            The file is written again after every line, so it is a scenario at \
+            any moment, named as the file is in upper camel case.
+            
+            A press (tap, long-press, the start of a swipe or a drag) is named \
+            by what the screen shows under it, read with the library's look and \
+            element_at before it is done: a wait_for that catches the element \
+            by its label, else its identifier, else its role and the text it \
+            shows, and the verb on what that wait returns. What no look names \
+            is pressed as a point of the screen, checked by element_at where it \
+            answers, and left with a comment to confirm what is there where it \
+            does not.
+            
+            The look taken before the next line, or one more at the end of \
+            standard input, is the screen a press led on to. What it newly \
+            shows, a heading first, then a field or a button, then a text, and \
+            never the keyboard, is written as a wait_for after the press. Right \
+            after an app is launched its elements may not be read yet, and a \
+            press then gets a comment in place of a wait.
+            
+            The draft is for a person to edit: what is pressed and what is \
+            waited for are what one run of the lines saw.
+            
+            With --record-input no line is read: what is written is the input \
+            the device is given, a person's taps in the simulator's window as \
+            much as anything else's, as enact device record-input reads it, \
+            until Ctrl-C, or until the device ends the recording, as one shut \
+            down does, which fails with what was given so far written. A swipe is written from where it began, the way it \
+            went, as far as a swipe reaches, the software \
+            keyboard's keys tapped in a row as one type_text, and a press is \
+            named by the look taken after the input before it, where the \
+            application showed the same element there when it was pressed.
+            """
+    )
+    
+    @OptionGroup var target: DeviceOption
+    
+    @Option(name: .customLong("output"), help: "The scenario file the draft is written to.")
+    var output: String
+    
+    @Flag(
+        name: .customLong("record-input"),
+        help: "Write the input the device is given, by a person or anything else, until stopped, instead of reading lines."
+    )
+    var recordsInput = false
+    
+    // MARK: - Initializer
+    // MARK: - Public
+    func run() async throws {
+        let device = try target.device()
+        let observer = try await ScreenObserver(device: device)
+        let file = URL(fileURLWithPath: output)
+        
+        if recordsInput {
+            try await draftInput(of: device, seenBy: observer, to: file)
+        } else {
+            try await draftLines(on: device, seenBy: observer, to: file)
+        }
+    }
+    
+    // MARK: - Private
+    private func draftLines(on device: Device, seenBy observer: ScreenObserver, to file: URL) async throws {
+        let interpreter = SessionInterpreter(udid: target.udid)
+        var draft = ScenarioDraft(for: file)
+        
+        save(draft, to: file)
+        
+        try await StandardInput().forEachLine { line in
+            let command: any DeviceCommand
+            let operation: DraftOperation?
+            
+            do throws(SessionFailure) {
+                guard let read = try interpreter.command(line) else { return }
+                
+                command = read
+            } catch {
+                SessionReply.error(error).write()
+                
+                return
+            }
+            
+            do {
+                operation = try DraftOperation(command, line: String(decoding: line, as: UTF8.self))
+            } catch {
+                SessionReply.error(SessionFailure(performing: error)).write()
+                
+                return
+            }
+            
+            guard let operation else {
+                await interpreter.perform(command, on: device).write()
+                
+                return
+            }
+            
+            let point = operation.point
+            let seen = draft.awaitsScreen || point != nil ? try? await observer.look() : nil
+            
+            draft.settle(on: seen)
+            
+            let hit: ObservedElement? = if let point, let seen { try? await observer.element(at: point, on: seen.screen) } else { nil }
+            let reply = await interpreter.perform(command, on: device)
+            
+            reply.write()
+            
+            if case .result = reply { draft.write(operation, seen: seen, hit: hit) }
+            
+            save(draft, to: file)
+        }
+        
+        if draft.awaitsScreen {
+            draft.settle(on: try? await observer.look())
+            save(draft, to: file)
+        }
+    }
+    
+    // The input comes after it was given, so a press is named by the look taken
+    // after the input before it, which is also the screen that input led on to.
+    // The keys typed on the software keyboard in a row are written as one text.
+    private func draftInput(of device: Device, seenBy observer: ScreenObserver, to file: URL) async throws {
+        var draft = ScenarioDraft(for: file)
+        var input = RecordedInput()
+        let (events, received) = AsyncStream<(event: InputEvent, told: Date)>.makeStream()
+        let signals = SignalWaiter([SIGINT, SIGTERM])
+        defer { signals.disarm() }
+        
+        save(draft, to: file)
+        
+        // Input given while the first look is taken is held until it is read.
+        let recording = try await device.run(RecordInputOperator { event in received.yield((event: event, told: Date())) })
+        var (seen, began) = await Self.look(by: observer)
+        
+        FileHandle.standardError.write(Data("enact: recording the input to \(output); Ctrl-C ends it\n".utf8))
+        
+        // The recording ends before the input does, so what was given up to the
+        // stop is still written.
+        let stopping = Task {
+            defer { received.finish() }
+            
+            await signals.wait()
+            try await recording.stop()
+        }
+        // A recording the device ended is stopped without waiting for a signal.
+        let losing = Task {
+            let lost = await recording.lost()
+            
+            if lost != nil { stopping.cancel() }
+            
+            return lost
+        }
+        
+        for await (event, told) in events {
+            // The screen an input was given on is the one the input before led to,
+            // so the wait for it goes before anything the input writes. A look begun
+            // after the input was given may show what the input itself led to, and
+            // is no screen to wait for before it.
+            if began <= Self.given(event, told: told) {
+                draft.settle(on: seen)
+            } else {
+                draft.leaveUnsettled()
+            }
+            
+            let operations = input.written(event, keys: seen?.keys ?? [])
+            
+            for operation in operations {
+                draft.write(operation, seen: seen, hit: seen?.element(pressedBy: event))
+            }
+            
+            save(draft, to: file)
+            
+            // What an input did is read where it comes to rest; a key that only adds
+            // to the text being typed is read once, for the keys it leaves showing.
+            (seen, began) = operations.isEmpty ? await Self.look(by: observer) : await Self.settledLook(by: observer)
+        }
+        
+        for operation in input.remaining() {
+            draft.write(operation, seen: nil, hit: nil)
+        }
+        
+        draft.settle(on: seen)
+        save(draft, to: file)
+        try await stopping.value
+        
+        if let lost = await losing.value { throw lost }
+    }
+    
+    // When an input was given: a gesture tells when it began, and anything else
+    // is taken by when it was told.
+    private static func given(_ event: InputEvent, told: Date) -> Date {
+        if case let .gesture(gesture) = event { gesture.time } else { told }
+    }
+    
+    // A look, nil where it failed, and when it began.
+    private static func look(by observer: ScreenObserver) async -> (seen: ObservedScreen?, began: Date) {
+        let began = Date()
+        
+        return (seen: try? await observer.look(), began: began)
+    }
+    
+    // A look taken again until two in a row agree, so a screen still moving after
+    // the input, as a list scrolling on, is read where it comes to rest.
+    // It began when the first of the two did, as the screen was the same from then.
+    private static func settledLook(by observer: ScreenObserver) async -> (seen: ObservedScreen?, began: Date) {
+        var last = await look(by: observer)
+        
+        for _ in 0..<5 {
+            try? await Task.sleep(for: .milliseconds(300))
+            
+            let next = await look(by: observer)
+            
+            if next.seen == last.seen { break }
+            
+            last = next
+        }
+        
+        return last
+    }
+    
+    private func save(_ draft: ScenarioDraft, to file: URL) {
+        do {
+            try draft.text.write(to: file, atomically: true, encoding: .utf8)
+        } catch {
+            FileHandle.standardError.write(Data("enact: writing the draft to \(output): \(error)\n".utf8))
+            Foundation.exit(EXIT_FAILURE)
+        }
+    }
+}
